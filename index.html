@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f141b">
+<title>Statewide</title>
+<style>
+  :root { --accent:#3b9eff; /* swappable brand token; owner supplies final color */
+    --bg:#0f141b; --panel:#171e28; --line:#263041; --text:#e8edf4; --muted:#8b97a8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui,sans-serif;
+    min-height:100dvh; display:flex; flex-direction:column; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:16px;
+    border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:1.25rem; letter-spacing:.12em; text-transform:uppercase; }
+  header h1 span { color:var(--accent); }
+  .status { color:var(--muted); font-size:.85rem; }
+  .status::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:#3ecf8e; margin-right:6px; }
+  main { flex:1; padding:16px; display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    align-content:center; max-width:960px; width:100%; margin:0 auto; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:16px; min-height:150px;
+    color:var(--text); font:inherit; cursor:pointer; display:flex; flex-direction:column; justify-content:center;
+    align-items:center; gap:6px; transition:transform .12s, border-color .12s; }
+  .tile:hover, .tile:focus-visible { border-color:var(--accent); transform:translateY(-2px); outline:none; }
+  .tile b { font-size:1.6rem; letter-spacing:.08em; }
+  .tile small { color:var(--muted); }
+  footer { padding:16px; text-align:center; }
+  .owner { background:none; border:1px solid var(--line); color:var(--muted); border-radius:10px;
+    padding:12px 20px; font:inherit; cursor:pointer; }
+  .owner:hover { color:var(--text); border-color:var(--accent); }
+  dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:16px; }
+  dialog::backdrop { background:rgba(0,0,0,.6); }
+</style>
+</head>
+<body>
+<header><h1>State<span>wide</span></h1><div class="status" id="status">Online</div></header>
+<main>
+  <button class="tile" data-go="pawn"><b>PAWN</b><small>Start a collateral loan</small></button>
+  <button class="tile" data-go="buy"><b>BUY</b><small>Purchase an item outright</small></button>
+  <button class="tile" data-go="sell"><b>SELL</b><small>Retail sale from inventory</small></button>
+  <button class="tile" data-go="inventory"><b>INVENTORY</b><small>Browse and manage stock</small></button>
+</main>
+<footer><button class="owner" id="ownerBtn">Owner / Manager</button></footer>
+<dialog id="dlg"><p id="msg" style="margin:0 0 12px"></p><form method="dialog"><button class="owner">Close</button></form></dialog>
+<script>
+  const dlg = document.getElementById('dlg'), msg = document.getElementById('msg');
+  const open = (t) => { msg.textContent = t; dlg.showModal(); };
+  document.querySelectorAll('.tile').forEach(b => b.onclick = () => open(b.dataset.go.toUpperCase() + ' flow: coming in a later build step.'));
+  document.getElementById('ownerBtn').onclick = () => open('Owner area is PIN-gated and arrives with Auth + roles (step 1b).');
+  const st = document.getElementById('status');
+  const sync = () => st.textContent = navigator.onLine ? 'Online' : 'Offline: changes will queue';
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>
