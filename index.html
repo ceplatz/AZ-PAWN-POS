@@ -30,12 +30,17 @@
   .owner { background:none; border:1px solid var(--line); color:var(--muted); border-radius:10px;
     padding:12px 20px; font:inherit; cursor:pointer; }
   .owner:hover { color:var(--text); border-color:var(--accent); }
+  .gate { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:10; }
+  .gate[hidden] { display:none; }
+  .gate form { display:flex; flex-direction:column; gap:12px; width:min(340px,90vw); }
+  .gate input { background:var(--panel); border:1px solid var(--line); border-radius:10px; color:var(--text); padding:14px; font:inherit; }
+  #err { color:#ff6b6b; margin:0; min-height:1.4em; }
   dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:16px; }
   dialog::backdrop { background:rgba(0,0,0,.6); }
 </style>
 </head>
 <body>
-<header><h1>State<span>wide</span></h1><div class="status" id="status">Online</div></header>
+<header><h1>State<span>wide</span></h1><div class="status" id="status">Online</div><button class="owner" id="outBtn" hidden>Sign out</button></header>
 <main>
   <button class="tile" data-go="pawn"><b>PAWN</b><small>Start a collateral loan</small></button>
   <button class="tile" data-go="buy"><b>BUY</b><small>Purchase an item outright</small></button>
@@ -43,13 +48,36 @@
   <button class="tile" data-go="inventory"><b>INVENTORY</b><small>Browse and manage stock</small></button>
 </main>
 <footer><button class="owner" id="ownerBtn">Owner / Manager</button></footer>
+<div id="gate" class="gate"><form id="loginForm">
+  <h2>Sign in</h2>
+  <input id="em" type="email" placeholder="Email" autocomplete="username" required>
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password" required>
+  <button class="tile" style="min-height:48px;flex-direction:row">Sign in</button>
+  <p id="err" role="alert"></p>
+</form></div>
 <dialog id="dlg"><p id="msg" style="margin:0 0 12px"></p><form method="dialog"><button class="owner">Close</button></form></dialog>
-<script>
-  const dlg = document.getElementById('dlg'), msg = document.getElementById('msg');
-  const open = (t) => { msg.textContent = t; dlg.showModal(); };
-  document.querySelectorAll('.tile').forEach(b => b.onclick = () => open(b.dataset.go.toUpperCase() + ' flow: coming in a later build step.'));
-  document.getElementById('ownerBtn').onclick = () => open('Owner area is PIN-gated and arrives with Auth + roles (step 1b).');
-  const st = document.getElementById('status');
+<script type="module">
+  import { watchAuth, login, logout } from './js/firebase.js';
+  const $ = (id) => document.getElementById(id);
+  const open = (t) => { $('msg').textContent = t; $('dlg').showModal(); };
+  let role = null;
+  document.querySelectorAll('.tile[data-go]').forEach(b => b.onclick = () => open(b.dataset.go.toUpperCase() + ' flow: coming in a later build step.'));
+  $('ownerBtn').onclick = () => (role === 'owner' || role === 'manager')
+    ? open('Owner area: PIN gate arrives next.') : open('Owner/Manager access required.');
+  $('outBtn').onclick = logout;
+  $('loginForm').onsubmit = async (e) => {
+    e.preventDefault(); $('err').textContent = '';
+    try { await login($('em').value, $('pw').value); }
+    catch { $('err').textContent = 'Sign-in failed. Check your email and password.'; }
+  };
+  watchAuth((user, r) => {
+    role = r;
+    $('gate').hidden = !!user && !!r;
+    $('outBtn').hidden = !user;
+    $('ownerBtn').hidden = !(r === 'owner' || r === 'manager');
+    if (user && !r) { $('err').textContent = 'No role assigned to this account. Ask the owner.'; $('gate').hidden = false; }
+  });
+  const st = $('status');
   const sync = () => st.textContent = navigator.onLine ? 'Online' : 'Offline: changes will queue';
   addEventListener('online', sync); addEventListener('offline', sync); sync();
 </script>
