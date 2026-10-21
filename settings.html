@@ -67,9 +67,20 @@
     <label><span>Police reporting service</span><input name="policeVendor" placeholder="e.g. LeadsOnline, local PD"></label></div>
     <p class="note">While the hold period is blank, items you buy or forfeit stay <b>On hold</b> until a manager releases them by hand. A number here sets the hold date automatically; 0 means no hold.</p></fieldset>
 
+  <fieldset><legend>Firearms (FFL) <i class="v">VERIFY</i></legend>
+    <label><span>Required steps at every firearm transfer (one per line)</span><textarea name="fwChecklist" rows="4" placeholder="e.g. CT permit / eligibility certificate verified&#10;Waiting period satisfied"></textarea></label>
+    <div class="g" style="margin-top:12px">
+      <label><span>Minimum buyer age: handgun</span><input name="fwMinAgeHandgun" inputmode="numeric" placeholder="blank = not enforced"></label>
+      <label><span>Minimum buyer age: long gun</span><input name="fwMinAgeLongGun" inputmode="numeric" placeholder="blank = not enforced"></label>
+      <label><span>Multiple-handgun alert window (days)</span><input name="fwMultipleDays" inputmode="numeric" placeholder="blank = off"></label></div>
+    <label class="ck"><input type="checkbox" name="fwRequireImage"><span><b>Require a photo of the completed Form 4473</b>Staff must attach a scan or photo before a transfer can finish.</span></label>
+    <label class="ck"><input type="checkbox" name="fwRedemption"><span><b>Pawned firearms returned to the customer go through the transfer flow</b>Recommended until ATF guidance / your attorney says otherwise. The database enforces this too.</span></label>
+    <p class="note">The app records 4473 and NICS details and builds the A&amp;D book. It does not replace Form 4473 and does not decide what the law requires: every value above is yours to confirm with ATF guidance and a firearms attorney.</p></fieldset>
+
   <fieldset><legend>Verification</legend>
     <label class="ck"><input type="checkbox" name="verifyLoan"><span><b>Loan terms verified</b>I have confirmed the interest, term, grace period and renewal rules with counsel / Regan.</span></label>
     <label class="ck"><input type="checkbox" name="verifyTicket"><span><b>Ticket and receipt content verified</b>The shop address, license number, ticket disclosure and receipt statement have been reviewed by counsel. Removes the DRAFT banner from printed tickets and receipts. Needs all four filled in.</span></label>
+    <label class="ck"><input type="checkbox" name="verifyFirearms"><span><b>Firearms settings verified</b>The checklist, age limits and transfer rules above have been confirmed with ATF guidance / a firearms attorney.</span></label>
     <p class="note" id="lastSaved"></p></fieldset>
 
   <ul id="errs" hidden></ul>
@@ -93,7 +104,7 @@
 
   const read = () => {
     const o = Object.fromEntries(new FormData(form).entries());
-    o.verifyLoan = form.elements.verifyLoan.checked; o.verifyTicket = form.elements.verifyTicket.checked; return o;
+    for (const k of ['verifyLoan', 'verifyTicket', 'verifyFirearms', 'fwRequireImage', 'fwRedemption']) o[k] = form.elements[k].checked; return o;
   };
   const fill = (v) => { for (const [k, x] of Object.entries(v)) { const el = form.elements[k]; if (!el) continue; if (el.type === 'checkbox') el.checked = !!x; else el.value = x; } };
 

@@ -88,12 +88,13 @@
     $('items').innerHTML = rows.map((i) => { const why = blockedReason(i, today);
       return `<div class="row ${why ? 'off' : ''}" data-id="${i.id}" ${why ? 'aria-disabled="true"' : ''}>${i.photos?.[0] ? `<img class="th" alt="" data-p="${esc(i.photos[0])}">` : '<div class="th"></div>'}
       <div><b>${esc(i.title)}</b><small>${esc(i.category)}${i.serial ? ' · SN ' + esc(i.serial) : ''}${i.location ? ' · ' + esc(i.location) : ''}</small></div><span class="sp"></span>
-      ${why ? `<span class="tag bad">${esc(why.length > 40 ? 'Firearm: not in app yet' : why)}</span>` : `<b>${fmtMoney(i.askPrice)}</b>`}</div>`; }).join('') || '<p class="note">No sellable items found.</p>';
+      ${why ? `<span class="tag bad">${esc(why.length > 40 ? 'Firearm: use Firearms' : why)}</span>` : `<b>${fmtMoney(i.askPrice)}</b>`}</div>`; }).join('') || '<p class="note">No sellable items found.</p>';
     document.querySelectorAll('img[data-p]').forEach(async (im) => { try { im.src = await photoUrl(im.dataset.p); } catch { /* none */ } });
   }
   $('q').oninput = paintItems;
   $('items').onclick = (e) => {
     const r = e.target.closest('.row'); if (!r) return; const item = items.find((i) => i.id === r.dataset.id), why = blockedReason(item, todayET());
+    if (item.isFirearm && ['for-sale', 'on-hold'].includes(item.status)) return (location.href = `firearms.html?sell=${item.id}`);
     if (why) return say(why, 'bad'); say('');
     cart.push({ item, price: item.askPrice ?? null, text: item.askPrice != null ? (item.askPrice / 100).toFixed(2) : '' }); paintItems(); paint();
   };

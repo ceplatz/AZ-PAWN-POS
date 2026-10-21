@@ -54,6 +54,10 @@
       <div class="ico"><svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg></div>
       <div><h3>INVENTORY</h3><p>Browse and manage stock</p></div>
     </button>
+    <button class="tile t-fw" data-href="firearms.html">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h11l2 2h3v4h-6l-1 4H8l1-4H4z"/><path d="M8 7v2"/></svg></div>
+      <div><h3>FIREARMS</h3><p>A&amp;D book, 4473 / NICS, transfers</p></div>
+    </button>
     <button class="tile t-loan" data-href="loans.html">
       <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/></svg></div>
       <div><h3>LOANS</h3><p>Redeem, renew, look up a loan</p></div>
@@ -88,7 +92,7 @@
 
   // ---- owner PIN gate ----
   const MODS = [['Reports of the Day'], ['Briefing'], ['Loans ledger', 'loans.html'], ['Customers', 'customers.html'], ['Inventory management', 'inventory.html'],
-    ['Messaging'], ['Reminders'], ['Cash management'], ['Settings', 'settings.html', true]];
+    ['Firearms A&D book', 'firearms.html'], ['Messaging'], ['Reminders'], ['Cash management'], ['Settings', 'settings.html', true]];
   $('mods').innerHTML = MODS.map(([n, href]) => href
     ? `<a class="mod" href="${href}" data-owner="${MODS.find(m => m[0] === n)[2] ? 1 : ''}" style="text-decoration:none;color:inherit;cursor:pointer"><em style="color:var(--good)">Open</em><b>${n}</b><span>${n === 'Settings' ? 'Owner only: shop, loan terms, ticket, compliance' : 'Open this page'}</span></a>`
     : `<div class="mod"><em>Soon</em><b>${n}</b><span>Coming in a later build step</span></div>`).join('');

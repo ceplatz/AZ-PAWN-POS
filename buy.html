@@ -61,7 +61,7 @@
         <label><span>Asking price $</span><input name="ask" inputmode="decimal" placeholder="0.00"></label>
         <label><span>Bin / location</span><input name="location" autocomplete="off"></label>
       </div><label style="display:block;margin-top:12px"><span>Notes</span><textarea name="notes" rows="2"></textarea></label>
-      <p class="msg warn" id="fireMsg" hidden>Firearm: the A&amp;D book and Form 4473 handling arrive in a later build step. Record this purchase in your existing bound book until then.</p>
+      <p class="msg warn" id="fireMsg" hidden>Firearm: after saving, add it to the A&amp;D book from the Firearms page (it appears in the "Needs A&amp;D entry" list).</p>
       <div class="actions"><button class="gold" type="submit">Add to purchase</button></div><p class="msg" id="itemMsg"></p></form>
     </details></fieldset>
 
@@ -152,7 +152,7 @@
     if (!lines.length) return say('issueMsg', 'Add at least one item.', 'bad');
     const total = totalPaid(lines);
     if (check.expired && !confirm('The seller\'s ID is expired. Continue anyway?')) return;
-    if (hasFirearm(lines) && !confirm('This purchase includes a firearm. The A&D book entry is NOT done by this app yet: record it in your bound book. Continue?')) return;
+    if (hasFirearm(lines) && !confirm('This purchase includes a firearm. After saving, add the A&D acquisition entry from the Firearms page. Continue?')) return;
     if (!confirm(`Pay ${cust.firstName} ${cust.lastName} ${fmtMoney(total)} for ${lines.length} item(s)?`)) return;
     $('issue').disabled = true; say('issueMsg', 'Saving…');
     try {

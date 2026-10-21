@@ -3,7 +3,7 @@ import { needsSerial } from './item-logic.js';
 
 /** Sellable now: marked for sale, or on hold with a hold date that has passed. Firearms are excluded until the A&D/4473 module exists. */
 export const isSellable = (item, today) => item.status === 'for-sale' || (item.status === 'on-hold' && !!item.holdUntil && item.holdUntil <= today);
-export const FIREARM_BLOCK = 'Firearms cannot be sold through the app yet: the A&D book and Form 4473 module is not built. Complete this sale in your existing process.';
+export const FIREARM_BLOCK = 'Firearms are sold from the Firearms page, which records the A&D disposition and the 4473 / NICS details.';
 export const blockedReason = (item, today) => (item.isFirearm ? FIREARM_BLOCK : !isSellable(item, today) ? (item.status === 'on-hold' ? 'On hold: not sellable yet' : 'Not for sale') : null);
 
 export const lineMargin = (price, cost) => (cost == null ? null : price - cost);

@@ -24,6 +24,12 @@ export function validateSettings(i) {
   if (hold === null || hold > 365) bad('Resale hold days must be blank (not set) or a whole number up to 365.');
   const minAge = blankOrInt(i.minSellerAge);
   if (minAge === null || minAge > 99) bad('Minimum seller age must be blank (not enforced) or a whole number up to 99.');
+  const fwHand = blankOrInt(i.fwMinAgeHandgun), fwLong = blankOrInt(i.fwMinAgeLongGun), fwMult = blankOrInt(i.fwMultipleDays);
+  if (fwHand === null || fwHand > 99) bad('Handgun minimum age must be blank or a whole number up to 99.');
+  if (fwLong === null || fwLong > 99) bad('Long gun minimum age must be blank or a whole number up to 99.');
+  if (fwMult === null || fwMult > 60) bad('Multiple-handgun alert window must be blank (off) or a whole number of days up to 60.');
+  const checklist = String(i.fwChecklist ?? '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  if (checklist.length > 20) bad('The firearm checklist can have at most 20 steps.');
   const taxPct = t('taxPct') === '' ? undefined : num(i.taxPct);
   if (taxPct === null || taxPct > 20) bad('Sales tax must be blank or a percent up to 20.');
   if (!t('name')) bad('Shop name is required.');
@@ -38,7 +44,9 @@ export function validateSettings(i) {
     loan: { monthlyRate: Math.round((ratePct ?? 0) * 1e4) / 1e6, termMonths, accrualMode: i.accrualMode, graceDays, renewalsAllowed: renewals === undefined ? null : renewals, forfeitureCostBasis: 'principal' },
     ticket: { disclosureText: String(i.disclosureText ?? '').trim(), receiptStatement: String(i.receiptStatement ?? '').trim() },
     compliance: { minSellerAge: minAge === undefined ? null : minAge, resaleHoldDays: hold === undefined ? null : hold, policeVendor: t('policeVendor') },
-    verified: { loan: !!i.verifyLoan, ticket: ticketOk },
+    firearms: { checklist, minAgeHandgun: fwHand === undefined ? null : fwHand, minAgeLongGun: fwLong === undefined ? null : fwLong,
+      multipleHandgunDays: fwMult === undefined ? null : fwMult, require4473Image: !!i.fwRequireImage, redemptionNeedsTransfer: i.fwRedemption === undefined ? true : !!i.fwRedemption },
+    verified: { loan: !!i.verifyLoan, ticket: ticketOk, firearms: !!i.verifyFirearms },
   };
   return { ok: errors.length === 0, errors, value };
 }
@@ -59,6 +67,8 @@ export function applySettings(CONFIG, s) {
   CONFIG.compliance.resaleHoldDays = s.compliance?.resaleHoldDays ?? null;
   CONFIG.compliance.policeReporting.vendor = s.compliance?.policeVendor || null;
   CONFIG.compliance.loanTermsVerified = !!s.verified?.loan;
+  CONFIG.compliance.firearmsVerified = !!s.verified?.firearms;
+  if (s.firearms) Object.assign(CONFIG.firearms, s.firearms);
   // The ticket only counts as verified if the owner ticked it AND the required content is actually present.
   CONFIG.compliance.verified = !!(s.verified?.ticket && sh.pawnLicense && sh.street && CONFIG.ticket.disclosureText && CONFIG.ticket.receiptStatement);
   return CONFIG;
@@ -73,5 +83,8 @@ export function toForm(s, CONFIG) {
     renewalsAllowed: l.renewalsAllowed == null ? '' : String(l.renewalsAllowed), disclosureText: s?.ticket?.disclosureText ?? '', receiptStatement: s?.ticket?.receiptStatement ?? '',
     minSellerAge: s?.compliance?.minSellerAge == null ? '' : String(s.compliance.minSellerAge),
     resaleHoldDays: s?.compliance?.resaleHoldDays == null ? '' : String(s.compliance.resaleHoldDays), policeVendor: s?.compliance?.policeVendor ?? '',
-    verifyLoan: !!s?.verified?.loan, verifyTicket: !!s?.verified?.ticket };
+    fwChecklist: (s?.firearms?.checklist || []).join('\n'), fwMinAgeHandgun: s?.firearms?.minAgeHandgun == null ? '' : String(s.firearms.minAgeHandgun),
+    fwMinAgeLongGun: s?.firearms?.minAgeLongGun == null ? '' : String(s.firearms.minAgeLongGun), fwMultipleDays: s?.firearms?.multipleHandgunDays == null ? '' : String(s.firearms.multipleHandgunDays),
+    fwRequireImage: !!s?.firearms?.require4473Image, fwRedemption: s?.firearms?.redemptionNeedsTransfer ?? true,
+    verifyLoan: !!s?.verified?.loan, verifyTicket: !!s?.verified?.ticket, verifyFirearms: !!s?.verified?.firearms };
 }

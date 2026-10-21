@@ -24,3 +24,9 @@ test('preview and Eastern-time date', () => {
   assert.deepEqual(previewTerms(10000, '2026-11-01'), { maturity: '2027-01-01', forfeitAfter: '2027-01-02', payoffAtMaturity: 15000 });
   assert.equal(todayET(new Date('2026-11-02T03:30:00Z')), '2026-11-01'); // 11:30pm Eastern still Nov 1
 });
+
+test('defaults that read the clock work (regression: todayET must be imported, not just re-exported)', () => {
+  const l = { principal: 10000, originDate: '2020-01-01', status: 'active', terms: termsFromConfig() };
+  assert.equal(summarize(l).status, 'defaulted');           // no asOf argument
+  assert.match(previewTerms(10000).maturity, /^\d{4}-\d{2}-\d{2}$/); // no originDate argument
+});

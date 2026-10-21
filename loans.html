@@ -63,7 +63,8 @@
 <script type="module">
   import { watchAuth } from './js/firebase.js';
   import { getCustomer } from './js/customers.js';
-  import { listLoans, redeemLoan, renewLoan, forfeitLoan } from './js/loans.js';
+  import { listLoans, redeemLoan, renewLoan, forfeitLoan, hasFirearmCollateral } from './js/loans.js';
+  import { CONFIG } from './js/config.js';
   import { summarize, STATUS_LABEL } from './js/loans-logic.js';
   import { fmtMoney } from './js/item-logic.js';
   import { ticketHtml, TICKET_CSS } from './js/ticket.js';
@@ -108,7 +109,7 @@
     $('dHist').innerHTML = [`Issued for ${fmtMoney(l.principal)} by ${esc(l.createdByEmail || '')}`, ...(l.history || []).map((h) => `${esc(h.date)}: ${esc(h.type)} ${h.amount ? fmtMoney(h.amount) : ''} (${esc(h.by || '')})`)].map((x) => `<li>${x}</li>`).join('');
     $('actBox').hidden = !isOpen; say('');
     $('redeemBtn').disabled = s.status === 'defaulted'; $('renewBtn').disabled = s.status === 'defaulted' || s.interest <= 0;
-    $('redeemBtn').textContent = `Redeem: collect ${fmtMoney(s.payoff)}`; $('renewBtn').textContent = s.interest > 0 ? `Renew: collect ${fmtMoney(s.interest)} interest` : 'Renew (no interest due yet)';
+    $('redeemBtn').textContent = (CONFIG.firearms.redemptionNeedsTransfer && hasFirearmCollateral(l)) ? 'Redeem firearm (4473 / NICS)…' : `Redeem: collect ${fmtMoney(s.payoff)}`; $('renewBtn').textContent = s.interest > 0 ? `Renew: collect ${fmtMoney(s.interest)} interest` : 'Renew (no interest due yet)';
     $('forfBtn').hidden = !(s.status === 'defaulted' && (role === 'owner' || role === 'manager'));
     if (s.status === 'defaulted') say(role === 'staff' ? 'Past forfeiture. A manager must move this to inventory.' : 'Past forfeiture. Forfeit it to move the items to inventory.', 'warn');
   }
@@ -117,7 +118,7 @@
     try { const r = await fn(); await refresh(); toast(done(r)); $('detail').hidden = true; }
     catch (e) { say(e.message && !/permission|network|offline|unavailable/i.test(e.message) ? e.message : 'Could not complete that. Check your connection and try again.', 'bad'); btn.disabled = false; }
   };
-  $('redeemBtn').onclick = () => { if (confirm(`Collect ${fmtMoney(cur.s.payoff)} and release the collateral?`)) run($('redeemBtn'), () => redeemLoan(cur, { method: $('method').value }), (r) => `Redeemed: collected ${fmtMoney(r.amount)}`)(); };
+  $('redeemBtn').onclick = () => { if (CONFIG.firearms.redemptionNeedsTransfer && hasFirearmCollateral(cur)) return (location.href = `firearms.html?redeem=${cur.id}`); if (confirm(`Collect ${fmtMoney(cur.s.payoff)} and release the collateral?`)) run($('redeemBtn'), () => redeemLoan(cur, { method: $('method').value }), (r) => `Redeemed: collected ${fmtMoney(r.amount)}`)(); };
   $('renewBtn').onclick = () => { if (confirm(`Collect ${fmtMoney(cur.s.interest)} interest and restart the loan term?`)) run($('renewBtn'), () => renewLoan(cur, { method: $('method').value }), (r) => `Renewed: collected ${fmtMoney(r.amount)}`)(); };
   $('forfBtn').onclick = () => { if (confirm('Forfeit this loan and move its items into inventory? This cannot be undone.')) run($('forfBtn'), () => forfeitLoan(cur), () => 'Moved to inventory (on hold)')(); };
   $('printBtn').onclick = async () => {

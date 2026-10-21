@@ -6,7 +6,7 @@ import { payoff } from '../js/loan-engine.js';
 
 const good = { name: 'AZ Pawn of Salem', street: '1 Main St', city: 'Salem', state: 'ct', zip: '06420', phone: '', pawnLicense: 'P-1', fflNumber: '',
   taxPct: '6.35', ratePct: '25', termMonths: '2', accrualMode: 'per-completed-month', graceDays: '0', renewalsAllowed: '', disclosureText: 'Terms...', receiptStatement: 'I own this.', minSellerAge: '',
-  resaleHoldDays: '', policeVendor: '', verifyLoan: false, verifyTicket: false };
+  resaleHoldDays: '', policeVendor: '', verifyLoan: false, verifyTicket: false, fwChecklist: '', fwMinAgeHandgun: '', fwMinAgeLongGun: '', fwMultipleDays: '', fwRequireImage: false, fwRedemption: true, verifyFirearms: false };
 const fresh = () => structuredClone(base);
 
 test('valid input becomes typed values (percent -> fraction, blanks -> null)', () => {
@@ -51,4 +51,15 @@ test('minimum seller age and receipt statement flow through', () => {
   applySettings(C, v);
   assert.equal(C.compliance.minSellerAge, 18); assert.equal(C.ticket.receiptStatement, 'I own this.');
   applySettings(C, validateSettings({ ...good, verifyTicket: true, receiptStatement: 'x' }).value); assert.equal(C.compliance.verified, true);
+});
+test('firearm settings: checklist lines, blanks = unenforced, defaults conservative', () => {
+  const r = validateSettings({ ...good, fwChecklist: ' CT permit \n\n Waiting period ', fwMinAgeHandgun: '21', fwMultipleDays: '5', fwRequireImage: true });
+  assert.ok(r.ok, r.errors.join('|'));
+  assert.deepEqual(r.value.firearms, { checklist: ['CT permit', 'Waiting period'], minAgeHandgun: 21, minAgeLongGun: null, multipleHandgunDays: 5, require4473Image: true, redemptionNeedsTransfer: true });
+  const C = fresh(); applySettings(C, r.value);
+  assert.equal(C.firearms.minAgeHandgun, 21); assert.equal(C.firearms.checklist.length, 2); assert.equal(C.firearms.types.length, 6);
+  for (const k of ['fwMinAgeHandgun', 'fwMinAgeLongGun']) assert.equal(validateSettings({ ...good, [k]: '200' }).ok, false);
+  assert.equal(validateSettings({ ...good, fwMultipleDays: '99' }).ok, false);
+  assert.equal(toForm(r.value, base).fwChecklist, 'CT permit\nWaiting period');
+  assert.equal(base.firearms.redemptionNeedsTransfer, true);
 });

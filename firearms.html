@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Firearms · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style id="tcss"></style>
+<style>
+  input, select, textarea { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:12px 14px; font:inherit; width:100%; transition:.15s; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); } input[type=checkbox] { width:auto; }
+  main { max-width:1040px; } .tabs { display:flex; gap:8px; flex-wrap:wrap; } .tabs button { padding:10px 16px; } .tabs button.on { border-color:var(--accent); color:var(--accent); }
+  .banner { border:1px solid var(--accent); border-radius:12px; padding:12px 16px; background:var(--accent-soft); font-size:.9rem; }
+  .list { display:grid; gap:8px; } .row { display:flex; align-items:center; gap:12px; padding:12px 16px; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); flex-wrap:wrap; }
+  .row .sp { flex:1; } .row small, .note { color:var(--muted); font-size:.85rem; } .row small { display:block; }
+  .tag { font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px; white-space:nowrap; } .tag.bad { color:var(--bad); } .tag.good { color:var(--good); }
+  .sheet { position:fixed; inset:0; z-index:15; overflow:auto; background:var(--bg); } .sheet-in { max-width:860px; margin:0 auto; padding:18px 20px 60px; }
+  .sheet-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; } .sheet-top h2 { margin:0; flex:1; }
+  fieldset { border:1px solid var(--line); border-radius:16px; padding:16px; margin:0 0 16px; background:var(--panel); min-width:0; } legend { padding:0 8px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+  .g { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); } label > span { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+  .ck { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--line-2); border-radius:12px; margin-top:8px; cursor:pointer; } .ck > span { text-transform:none; letter-spacing:normal; font-size:.92rem; color:var(--text); margin:0; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:center; } .msg { min-height:1.4em; margin:10px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); }
+  ul.errs { color:var(--bad); margin:8px 0 0; padding-left:18px; } [hidden] { display:none !important; } .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--accent); padding:12px 20px; border-radius:12px; z-index:30; }
+  table.book { width:100%; border-collapse:collapse; font-size:.82rem; } .book th, .book td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; } .book th { color:var(--muted); font-weight:500; position:sticky; top:0; background:var(--bg); }
+  .scroll { overflow:auto; max-height:65vh; border:1px solid var(--line); border-radius:12px; } #done .ticket { margin:14px auto; }
+  dialog.cam { border:0; background:#000; padding:0; width:min(96vw,900px); border-radius:18px; } .cam-in { padding:14px; } .cam-in h3 { margin:0 0 10px; } .cam video { width:100%; max-height:70vh; background:#000; border-radius:12px; } .cam-msg { color:var(--muted); min-height:1.3em; } .cam-bar { display:flex; justify-content:space-between; gap:10px; }
+  @media print { body > *:not(#printBook) { display:none !important; } #printBook { display:block !important; } }
+  #printBook { display:none; color:#000; background:#fff; padding:10px; font:11px Arial; } #printBook table { width:100%; border-collapse:collapse; } #printBook th, #printBook td { border:1px solid #444; padding:3px 5px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a>
+  <div class="wordmark" style="margin-left:6px">Firearms</div><div class="spacer"></div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div>
+</header>
+<main id="main">
+  <div class="banner" id="verBanner"><b>Records support only.</b> This area records A&amp;D entries and Form 4473 / NICS details. It does not replace Form 4473 or your legal obligations. The settings that drive it (checklist, age limits, redemption rule) are <b>not yet verified</b> by the owner with ATF guidance / a firearms attorney.</div>
+  <div class="tabs"><button class="ghost on" data-t="queue">Needs A&amp;D entry <span class="tag" id="qn">0</span></button><button class="ghost" data-t="stock">On hand</button><button class="ghost" data-t="book">A&amp;D book</button><button class="ghost" data-t="xfers">Transfers (4473)</button><button class="ghost" data-t="checks">Blocked checks</button></div>
+  <div id="tab"></div>
+</main>
+
+<div class="sheet" id="acq" hidden><div class="sheet-in">
+  <div class="sheet-top"><h2>A&amp;D acquisition entry</h2><button class="ghost" id="acqClose">Cancel</button></div>
+  <form id="aform" novalidate>
+    <fieldset><legend>Firearm</legend><div class="g">
+      <label><span>Acquisition date *</span><input name="date" type="date"></label>
+      <label><span>Manufacturer / importer *</span><input name="manufacturer" autocomplete="off"></label>
+      <label><span>Importer (if different)</span><input name="importer" autocomplete="off"></label>
+      <label><span>Model *</span><input name="model" autocomplete="off"></label>
+      <label><span>Serial number *</span><input name="serial" autocomplete="off"></label>
+      <label><span>Type *</span><select name="type"></select></label>
+      <label><span>Caliber / gauge *</span><input name="caliber" autocomplete="off"></label></div></fieldset>
+    <fieldset><legend>Acquired from</legend><div class="g">
+      <label><span>Source *</span><select name="sourceType"></select></label>
+      <label><span>Name *</span><input name="sourceName" autocomplete="off"></label>
+      <label><span>Address *</span><input name="sourceAddress" autocomplete="off"></label>
+      <label><span>FFL number (dealers)</span><input name="sourceFfl" autocomplete="off"></label></div>
+      <div class="actions"><button type="button" class="ghost" id="pickSrc">Fill from a customer</button></div><div id="srcFind" hidden><input id="srcQ" type="search" placeholder="Search customer" style="margin-top:8px"><div class="list" id="srcRes" style="margin-top:8px"></div></div>
+      <p class="note">Entries cannot be edited or deleted after saving. Check every field against the firearm.</p></fieldset>
+    <ul class="errs" id="aErrs" hidden></ul><button class="gold" style="width:100%;padding:16px" id="aSave">Add to A&amp;D book</button><p class="msg" id="aMsg"></p>
+  </form>
+</div></div>
+
+<div class="sheet" id="xfer" hidden><div class="sheet-in">
+  <div class="sheet-top"><h2 id="xTitle"></h2><button class="ghost" id="xClose">Cancel</button></div>
+  <fieldset><legend>Firearm</legend><div id="xItem"></div></fieldset>
+  <fieldset><legend>Buyer</legend><div id="xBuyer"></div><div id="xFind"><input id="xq" type="search" placeholder="Search name, phone, or last 4 of ID" autocomplete="off"><div class="list" id="xres" style="margin-top:8px"></div></div><p class="msg" id="xCust"></p></fieldset>
+  <fieldset id="payBox"><legend>Payment</legend><div class="g"><label><span id="priceLbl">Price $ *</span><input id="xprice" inputmode="decimal"></label><label><span>Paid by</span><select id="xmethod"><option value="cash">Cash</option><option value="card">Card / check</option></select></label><label id="tendWrap"><span>Cash tendered $</span><input id="xtend" inputmode="decimal"></label></div><p class="note" id="xTotals"></p></fieldset>
+  <fieldset><legend>Form 4473 &amp; NICS</legend>
+    <label class="ck"><input type="checkbox" id="xId"><span>I checked the buyer's ID against the person.</span></label>
+    <label class="ck"><input type="checkbox" id="x4473"><span>Form 4473 is completed and signed.</span></label>
+    <div id="xChecks"></div>
+    <div class="g" style="margin-top:12px"><label><span>NICS result *</span><select id="xNics"><option value="">Select…</option><option>Proceed</option><option>Delayed</option><option>Denied</option><option>Cancelled</option></select></label>
+      <label><span>NICS transaction number *</span><input id="xNum" autocomplete="off"></label><label><span>NICS check date/time</span><input id="xAt" type="datetime-local"></label></div>
+    <label style="display:block;margin-top:12px"><span>Notes</span><textarea id="xNotes" rows="2"></textarea></label>
+    <div class="actions"><button class="ghost" type="button" id="xImg">Photo of completed 4473</button><span class="note" id="xImgNote">none attached</span></div>
+    <p class="msg warn" id="xAlert" hidden></p></fieldset>
+  <ul class="errs" id="xErrs" hidden></ul><button class="gold" style="width:100%;padding:16px" id="xGo">Complete transfer</button><p class="msg" id="xMsg" role="alert"></p>
+</div></div>
+
+<section id="done" hidden style="max-width:860px;margin:0 auto;padding:20px"><p class="msg good" id="doneMsg" style="font-size:1.1rem"></p>
+  <div class="actions"><button class="gold" id="printBtn">Print receipt</button><a class="ghost" style="text-decoration:none;padding:12px 16px;border:1px solid var(--line);border-radius:10px" href="firearms.html">Back to Firearms</a></div><div id="preview"></div></section>
+<div id="printArea"></div><div id="printBook"></div>
+
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { CONFIG } from './js/config.js';
+  import { todayET } from './js/dates.js';
+  import { listCustomers, getCustomer } from './js/customers.js';
+  import { listLoans } from './js/loans.js';
+  import { parseMoney, fmtMoney } from './js/item-logic.js';
+  import { validateAcquisition, validateTransfer, multipleHandgunAlert, needsAd, adToCsv, SOURCE_TYPES } from './js/firearms-logic.js';
+  import { ageOn } from './js/seller-check.js';
+  import { computeTotals, changeDue } from './js/sell-logic.js';
+  import { listFirearmItems, listAD, listTransfers, createAcquisition, createFirearmSale, createFirearmRedeem, logCheck } from './js/firearms.js';
+  import { capturePhoto } from './js/camera.js';
+  import { saleReceiptHtml } from './js/receipt.js';
+  import { TICKET_CSS } from './js/ticket.js';
+
+  const $ = (id) => document.getElementById(id); $('tcss').textContent = TICKET_CSS;
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const toast = (t) => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); };
+  const say = (el, t, k = '') => { $(el).textContent = t; $(el).className = 'msg ' + k; };
+  const errs = (el, list) => { $(el).innerHTML = list.map((e) => `<li>${esc(e)}</li>`).join(''); $(el).hidden = !list.length; };
+  let items = [], book = [], xfers = [], people = [], tab = 'queue', role = null, fw = CONFIG.firearms;
+  const A = $('aform').elements;
+  A.type.innerHTML = '<option value="">Select…</option>' + fw.types.map((t) => `<option>${esc(t)}</option>`).join('');
+  A.sourceType.innerHTML = Object.entries(SOURCE_TYPES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+
+  watchAuth(async (user, r) => {
+    if (!user || !r) return location.replace('index.html'); role = r; fw = CONFIG.firearms;
+    $('verBanner').hidden = CONFIG.compliance.firearmsVerified;
+    A.type.innerHTML = '<option value="">Select…</option>' + fw.types.map((t) => `<option>${esc(t)}</option>`).join('');
+    await load(); people = await listCustomers().catch(() => []);
+    const u = new URLSearchParams(location.search);
+    if (u.get('sell')) openSale(items.find((i) => i.id === u.get('sell'))); else if (u.get('redeem')) openRedeem(u.get('redeem'));
+  });
+  async function load() {
+    try { [items, book, xfers] = await Promise.all([listFirearmItems(), listAD(), listTransfers()]); show(); }
+    catch (e) { console.error(e); $('tab').innerHTML = '<p class="note">Could not load firearms records. Check your connection.</p>'; }
+  }
+  document.querySelector('.tabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; tab = b.dataset.t; document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b)); show(); };
+
+  function show() {
+    const q = needsAd(items); $('qn').textContent = q.length; const T = $('tab');
+    if (tab === 'queue') T.innerHTML = q.length ? `<div class="list">${q.map((i) => `<div class="row"><div><b>${esc(i.title)}</b><small>${esc(i.brand)} ${esc(i.model)} · SN ${esc(i.serial)} · ${esc(i.source)}</small></div><span class="sp"></span><button class="gold" data-acq="${i.id}">Add A&amp;D entry</button></div>`).join('')}</div>` : '<p class="note">Every firearm on file has an A&amp;D entry.</p>';
+    if (tab === 'stock') { const on = items.filter((i) => i.adEntryId && ['for-sale', 'on-hold', 'collateral-active'].includes(i.status)); const today = todayET();
+      T.innerHTML = on.length ? `<div class="list">${on.map((i) => { const can = i.status === 'for-sale' || (i.status === 'on-hold' && i.holdUntil && i.holdUntil <= today);
+        return `<div class="row"><div><b>${esc(i.title)}</b><small>A&amp;D #${i.adEntryNumber} · ${esc(i.firearmType)} · SN ${esc(i.serial)}</small></div><span class="sp"></span><span class="tag">${esc(i.status)}</span>${can ? `<button class="gold" data-sell="${i.id}">Sell…</button>` : i.status === 'collateral-active' ? '<small>Pawn collateral: redeem from Loans</small>' : '<small>Not sellable yet</small>'}</div>`; }).join('')}</div>` : '<p class="note">No firearms on hand with an A&amp;D entry.</p>'; }
+    if (tab === 'book') T.innerHTML = `<div class="actions" style="margin:0 0 10px"><input id="bq" type="search" placeholder="Search serial, model, name" style="max-width:340px"><button class="ghost" id="csv">Export CSV</button><button class="ghost" id="prt">Print book</button></div>
+      <div class="scroll"><table class="book"><thead><tr><th>#</th><th>Acquired</th><th>From</th><th>Firearm</th><th>Serial</th><th>Disposed</th><th>To</th></tr></thead><tbody id="bb"></tbody></table></div>`, paintBook();
+    if (tab === 'xfers') T.innerHTML = xfers.length ? `<div class="list">${xfers.map((x) => `<div class="row"><div><b>${esc(x.title)}</b> · SN ${esc(x.serial)}<small>${esc(x.date)} · ${esc(x.kind)} to ${esc(x.buyerName)} · NICS ${esc(x.nicsNumber)}</small></div><span class="sp"></span><span class="tag good">${esc(x.nicsResult)}</span></div>`).join('')}</div>` : '<p class="note">No transfers recorded.</p>';
+    if (tab === 'checks') loadChecks();
+  }
+  async function loadChecks() {
+    const { collection, getDocs, query, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js'); const { db } = await import('./js/firebase.js');
+    try { const rows = (await getDocs(query(collection(db, 'firearmChecks'), orderBy('createdAt', 'desc'), limit(200)))).docs.map((d) => d.data());
+      $('tab').innerHTML = rows.length ? `<div class="list">${rows.map((x) => `<div class="row"><div><b>${esc(x.buyerName)}</b> · SN ${esc(x.serial)}<small>${esc(x.date)} · NICS ${esc(x.nicsNumber || 'n/a')} · ${esc(x.createdByEmail)}</small></div><span class="sp"></span><span class="tag bad">${esc(x.nicsResult)}</span></div>`).join('')}</div>` : '<p class="note">No blocked checks recorded.</p>'; }
+    catch { $('tab').innerHTML = '<p class="note">Could not load.</p>'; }
+  }
+  const bookRows = (rows) => rows.map((e) => `<tr><td>${e.entryNumber}</td><td>${esc(e.acq.date)}</td><td>${esc(e.acq.sourceName)}<br>${esc(e.acq.sourceAddress)}</td><td>${esc(e.acq.manufacturer)} ${esc(e.acq.model)}<br>${esc(e.acq.type)} ${esc(e.acq.caliber)}</td><td>${esc(e.acq.serial)}</td><td>${esc(e.disp?.date || '')}</td><td>${e.disp ? esc(e.disp.name) + '<br>' + esc(e.disp.address) + '<br>NICS ' + esc(e.disp.nicsNumber) : ''}</td></tr>`).join('');
+  function paintBook() {
+    const f = () => { const t = ($('bq')?.value || '').toLowerCase(); return book.filter((e) => !t || JSON.stringify(e.acq).toLowerCase().includes(t) || (e.disp?.name || '').toLowerCase().includes(t)); };
+    $('bb').innerHTML = bookRows(f()); $('bq').oninput = () => { $('bb').innerHTML = bookRows(f()); };
+    $('csv').onclick = () => { const b = new Blob([adToCsv([...book].reverse())], { type: 'text/csv' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `ad-book-${todayET()}.csv`; a.click(); };
+    $('prt').onclick = () => { $('printBook').innerHTML = `<h2>${esc(CONFIG.shop.name)}: Acquisition &amp; Disposition record (printed ${todayET()})</h2><table><thead><tr><th>#</th><th>Acquired</th><th>From</th><th>Firearm</th><th>Serial</th><th>Disposed</th><th>To</th></tr></thead><tbody>${bookRows([...book].reverse())}</tbody></table>`; print(); };
+  }
+  $('tab').onclick = (e) => { const a = e.target.closest('[data-acq]'), s = e.target.closest('[data-sell]'); if (a) openAcq(items.find((i) => i.id === a.dataset.acq)); if (s) openSale(items.find((i) => i.id === s.dataset.sell)); };
+
+  // ---------- acquisition ----------
+  let acqItem = null;
+  function openAcq(item) {
+    acqItem = item; $('aform').reset(); errs('aErrs', []); say('aMsg', '');
+    A.date.value = todayET(); A.manufacturer.value = item.brand || ''; A.model.value = item.model || item.title || ''; A.serial.value = item.serial || '';
+    A.sourceType.value = item.source === 'pawn-collateral' ? 'pawn' : item.source === 'forfeited' ? 'forfeited' : item.source === 'bought' ? 'customer' : 'other'; $('srcFind').hidden = true; $('acq').hidden = false;
+  }
+  $('acqClose').onclick = () => { $('acq').hidden = true; };
+  $('pickSrc').onclick = () => { $('srcFind').hidden = !$('srcFind').hidden; };
+  $('srcQ').oninput = () => { const q = $('srcQ').value.trim().toLowerCase(); $('srcRes').innerHTML = q ? people.filter((c) => `${c.firstName} ${c.lastName}`.toLowerCase().includes(q)).slice(0, 6).map((c) => `<div class="row" data-id="${c.id}" style="cursor:pointer"><b>${esc(c.lastName)}, ${esc(c.firstName)}</b></div>`).join('') : ''; };
+  $('srcRes').onclick = (e) => { const r = e.target.closest('.row'); if (!r) return; const c = people.find((x) => x.id === r.dataset.id); A.sourceName.value = `${c.firstName} ${c.lastName}`; A.sourceAddress.value = [c.address?.street, c.address?.city, c.address?.state, c.address?.zip].filter(Boolean).join(', '); $('aform').dataset.cust = c.id; $('srcFind').hidden = true; };
+  $('aform').onsubmit = async (e) => {
+    e.preventDefault(); const f = Object.fromEntries(new FormData($('aform')).entries()); f.sourceCustomerId = $('aform').dataset.cust || null;
+    const v = validateAcquisition(f); errs('aErrs', v.errors); if (!v.ok) return say('aMsg', 'Fix the items above.', 'bad');
+    if (!confirm('Add this entry to the A&D book? Entries cannot be edited or deleted afterward.')) return;
+    $('aSave').disabled = true; say('aMsg', 'Saving…');
+    try { const r = await createAcquisition(acqItem, f); $('acq').hidden = true; toast(`Added as A&D entry #${r.entryNumber}`); await load(); }
+    catch (err) { say('aMsg', err.message.startsWith('This firearm') ? err.message : 'Could not save. Check your connection and try again.', 'bad'); console.error(err); } finally { $('aSave').disabled = false; }
+  };
+
+  // ---------- transfers (sale / pawn return) ----------
+  let X = null;
+  function resetX(kind, item, loan) {
+    X = { kind, item, loan: loan || null, buyer: null, ids: null, blob: null, alerted: false }; errs('xErrs', []); say('xMsg', ''); say('xCust', '');
+    ['xId', 'x4473'].forEach((k) => { $(k).checked = false; }); $('xNics').value = ''; $('xNum').value = ''; $('xNotes').value = ''; $('xprice').value = ''; $('xtend').value = ''; $('xImgNote').textContent = 'none attached'; $('xAlert').hidden = true;
+    const d = new Date(), pad = (n) => String(n).padStart(2, '0'); $('xAt').value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    $('xItem').innerHTML = `<b>${esc(item.title)}</b><br><small class="note">A&amp;D #${item.adEntryNumber ?? '—'} · ${esc(item.firearmType || '')} · SN ${esc(item.serial)}</small>`;
+    $('xChecks').innerHTML = fw.checklist.map((c, i) => `<label class="ck"><input type="checkbox" data-ck="${i}"><span>${esc(c)}</span></label>`).join('');
+    $('xBuyer').innerHTML = ''; $('xFind').hidden = kind === 'redemption'; $('payBox').hidden = false; $('xres').innerHTML = ''; $('xq').value = ''; $('xGo').disabled = false; $('xmethod').value = 'cash'; $('tendWrap').hidden = false; $('xTotals').textContent = '';
+    $('xTitle').textContent = kind === 'sale' ? 'Firearm sale' : 'Return pawned firearm (redemption)'; $('priceLbl').textContent = kind === 'sale' ? 'Price $ *' : 'Payoff to collect (from the loan)';
+    $('xprice').readOnly = kind === 'redemption'; $('xfer').hidden = false;
+  }
+  async function setBuyer(id) {
+    try { const c = await getCustomer(id); X.buyer = { id, ...c }; X.ids = c.ids; } catch { return say('xCust', 'Could not load that customer.', 'bad'); }
+    const b = X.buyer; $('xFind').hidden = true;
+    $('xBuyer').innerHTML = `<div class="row"><div><b>${esc(b.firstName)} ${esc(b.lastName)}</b> <span class="tag">Age ${ageOn(b.dob) ?? '?'}</span><small>${esc([b.address?.street, b.address?.city, b.address?.state].filter(Boolean).join(', '))} · ${esc(b.ids.idType || '')} ${esc(b.ids.idNumber || '')} (${esc(b.ids.idState || '')}) exp ${esc(b.ids.idExpiry || '?')}</small></div><span class="sp"></span>${X.kind === 'sale' ? '<button class="ghost" id="xchg">Change</button>' : ''}</div>`;
+    if ($('xchg')) $('xchg').onclick = () => { X.buyer = null; $('xBuyer').innerHTML = ''; $('xFind').hidden = false; $('xAlert').hidden = true; };
+    const msgs = [b.flags?.doNotBuy ? 'DO NOT BUY flag on this customer.' : '', b.flags?.police ? 'Police flag: notify the owner.' : ''].filter(Boolean); say('xCust', msgs.join(' '), 'warn');
+    const al = multipleHandgunAlert({ transfers: xfers, buyerId: id, itemType: X.item.firearmType, today: todayET(), cfg: fw }); $('xAlert').hidden = !al; $('xAlert').textContent = al || '';
+  }
+  $('xq').oninput = () => { const q = $('xq').value.trim().toLowerCase(), d = q.replace(/\D/g, ''); $('xres').innerHTML = q ? people.filter((c) => `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) || (d && (c.phone || '').replace(/\D/g, '').includes(d)) || c.idLast4?.toLowerCase() === q).slice(0, 8).map((c) => `<div class="row" data-id="${c.id}" style="cursor:pointer"><b>${esc(c.lastName)}, ${esc(c.firstName)}</b><span class="sp"></span><small>ID …${esc(c.idLast4)}</small></div>`).join('') : ''; };
+  $('xres').onclick = (e) => { const r = e.target.closest('.row'); if (r) setBuyer(r.dataset.id); };
+  $('xClose').onclick = () => { $('xfer').hidden = true; };
+  $('xImg').onclick = async () => { try { X.blob = await capturePhoto({ title: 'Photo of completed Form 4473' }); $('xImgNote').textContent = 'attached'; } catch (e) { if (e.message !== 'cancelled') say('xMsg', e.message, 'bad'); } };
+  const totals = () => { if (X?.kind !== 'sale') return null; const p = parseMoney($('xprice').value); if (!p) { $('xTotals').textContent = ''; return null; } const t = computeTotals([p], CONFIG.shop.taxRate ?? null); const ch = $('xmethod').value === 'cash' ? changeDue(parseMoney($('xtend').value), t.total) : null;
+    $('xTotals').textContent = `Subtotal ${fmtMoney(t.subtotal)} + tax ${fmtMoney(t.tax)}${t.taxKnown ? '' : ' (tax rate not set in Settings)'} = ${fmtMoney(t.total)}${ch?.change != null ? ` · change ${fmtMoney(ch.change)}` : ch?.error ? ` · ${ch.error}` : ''}`; return t; };
+  ['xprice', 'xtend', 'xmethod'].forEach((k) => { $(k).oninput = $(k).onchange = () => { $('tendWrap').hidden = $('xmethod').value !== 'cash'; totals(); }; });
+
+  function openSale(item) { if (!item) return; if (!item.adEntryId) { toast('Add the A&D entry first.'); return openAcq(item); } resetX('sale', item); $('xprice').value = item.askPrice != null ? (item.askPrice / 100).toFixed(2) : ''; totals(); }
+  async function openRedeem(loanId) {
+    let loan; try { loan = (await listLoans()).find((l) => l.id === loanId); } catch { return toast('Could not load the loan.'); }
+    if (!loan) return toast('Loan not found.');
+    const fws = loan.itemIds.map((id, i) => ({ id, s: loan.itemSummaries[i] })).filter((x) => x.s.category === 'Firearm');
+    if (fws.length !== 1) return toast(fws.length ? 'This loan has more than one firearm: complete it in your existing process.' : 'This loan has no firearm.');
+    const item = items.find((i) => i.id === fws[0].id); if (!item?.adEntryId) { toast('Add the A&D entry for this firearm first.'); return item && openAcq(item); }
+    const { summarize } = await import('./js/loans-logic.js'); const s = summarize(loan);
+    if (!['active', 'maturing-soon', 'overdue'].includes(s.status)) return toast('This loan can no longer be redeemed.');
+    resetX('redemption', item, loan); $('xprice').value = (s.payoff / 100).toFixed(2); await setBuyer(loan.customerId);
+  }
+  $('xGo').onclick = async () => {
+    const form = { idVerified: $('xId').checked, form4473Done: $('x4473').checked, checks: [...document.querySelectorAll('[data-ck]')].map((c) => c.checked), nicsResult: $('xNics').value, nicsNumber: $('xNum').value, nicsAt: $('xAt').value, notes: $('xNotes').value.trim(), hasImage: !!X.blob };
+    const r = validateTransfer(form, { cfg: fw, today: todayET(), buyer: X.buyer, ids: X.ids || {}, item: X.item, hasAd: !!X.item.adEntryId });
+    const errList = [...r.errors]; let price = null;
+    if (X.kind === 'sale') { price = parseMoney($('xprice').value); if (!price) errList.push('Enter the sale price.'); }
+    if (X.buyer?.flags?.doNotBuy && X.kind === 'sale') { /* do-not-buy applies to buying from them, not selling to them */ }
+    errs('xErrs', errList); if (r.block) { say('xMsg', r.block, 'bad'); if (X.buyer && form.nicsResult && form.nicsResult !== 'Proceed' && !X.alerted) { X.alerted = true; try { await logCheck({ item: X.item, buyer: X.buyer, form }); toast('Blocked check recorded'); } catch { /* best effort */ } } return; }
+    if (errList.length) return say('xMsg', 'Complete the items above.', 'bad');
+    let tendered = null; if (X.kind === 'sale' && $('xmethod').value === 'cash' && $('xtend').value.trim()) { tendered = parseMoney($('xtend').value); const t = computeTotals([price], CONFIG.shop.taxRate ?? null), ch = changeDue(tendered, t.total); if (tendered == null || ch.error) return say('xMsg', ch?.error || 'Tendered amount is not valid.', 'bad'); }
+    if (!confirm(X.kind === 'sale' ? `Complete the transfer and sale of ${X.item.title} to ${X.buyer.firstName} ${X.buyer.lastName}? This writes the A&D disposition and cannot be undone.` : 'Return this firearm to the customer? This writes the A&D disposition and cannot be undone.')) return;
+    $('xGo').disabled = true; say('xMsg', 'Saving…');
+    try {
+      if (X.kind === 'sale') {
+        const sale = await createFirearmSale({ item: X.item, price, buyer: X.buyer, ids: X.ids, form, method: $('xmethod').value, tendered, imageBlob: X.blob });
+        const html = saleReceiptHtml({ sale, customer: X.buyer }); $('preview').innerHTML = html; $('printArea').innerHTML = html; $('doneMsg').textContent = `Transfer recorded. Receipt #${sale.receiptNumber}: ${fmtMoney(sale.total)}.`; $('printBtn').hidden = false; $('printBtn').onclick = () => print();
+      } else { await createFirearmRedeem({ loan: X.loan, item: X.item, buyer: X.buyer, ids: X.ids, form, method: $('xmethod').value, imageBlob: X.blob }); $('doneMsg').textContent = `Loan #${X.loan.ticketNumber} redeemed and the firearm returned. Collect ${$('xprice').value} from the customer.`; $('printBtn').hidden = true; $('preview').innerHTML = ''; }
+      $('xfer').hidden = true; $('main').hidden = true; $('done').hidden = false;
+    } catch (err) { say('xMsg', /no longer|already|not currently|not sellable/.test(err.message) ? err.message : 'Could not complete the transfer. Check your connection and try again. Nothing was recorded.', 'bad'); console.error(err); $('xGo').disabled = false; }
+  };
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline (needs a connection)'; $('dot').classList.toggle('off', !on); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

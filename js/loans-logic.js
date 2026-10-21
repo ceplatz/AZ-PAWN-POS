@@ -2,7 +2,8 @@
 import { CONFIG } from './config.js';
 import { payoff, accruedInterest, maturityDate, forfeitureDate, statusAsOf } from './loan-engine.js';
 
-export { todayET } from './dates.js';
+import { todayET } from './dates.js';
+export { todayET };
 
 /** Snapshot the loan rules onto each loan at issue time so later config changes never alter an existing loan. */
 export const termsFromConfig = (c = CONFIG.loan) => ({ monthlyRate: c.monthlyRate, termMonths: c.termMonths, accrualMode: c.accrualMode,

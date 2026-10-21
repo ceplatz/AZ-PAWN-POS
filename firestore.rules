@@ -20,7 +20,7 @@ service cloud.firestore {
     match /items/{id}       { allow read, create: if isStaff(); allow delete: if false;
       allow update: if isMgr()
         // counter: redeeming a pawn releases the collateral
-        || (isStaff() && resource.data.status == 'collateral-active' && request.resource.data.status == 'released'
+        || (isStaff() && resource.data.status == 'collateral-active' && request.resource.data.status == 'released' && resource.data.get('isFirearm', false) == false
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'updatedBy']))
         // counter: a sale. Item must be for sale, or its hold must have ended (checked here against server time).
         || (isStaff() && request.resource.data.status == 'sold' && request.resource.data.diff(resource.data).affectedKeys()
@@ -28,7 +28,26 @@ service cloud.firestore {
             && (resource.data.status == 'for-sale'
                 || (resource.data.status == 'on-hold' && resource.data.get('holdUntilMs', null) != null
                     && resource.data.holdUntilMs <= request.time.toMillis()))
-            && resource.data.get('isFirearm', false) == false); }
+            && resource.data.get('isFirearm', false) == false)
+        // counter: a FIREARM sale. Allowed only with a NICS "Proceed" transfer record written in the same transaction.
+        || (isStaff() && request.resource.data.status == 'sold' && resource.data.get('isFirearm', false) == true
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'soldDate', 'soldPrice', 'saleId', 'updatedAt', 'updatedBy'])
+            && (resource.data.status == 'for-sale'
+                || (resource.data.status == 'on-hold' && resource.data.get('holdUntilMs', null) != null && resource.data.holdUntilMs <= request.time.toMillis()))
+            && existsAfter(/databases/$(db)/documents/firearmTransfers/$(request.resource.data.saleId))
+            && getAfter(/databases/$(db)/documents/firearmTransfers/$(request.resource.data.saleId)).data.nicsResult == 'Proceed'
+            && getAfter(/databases/$(db)/documents/firearmTransfers/$(request.resource.data.saleId)).data.itemId == resource.id)
+        // counter: first A&D entry links the item
+        || (isStaff() && resource.data.get('adEntryId', null) == null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adEntryId', 'adEntryNumber', 'firearmType', 'updatedAt', 'updatedBy']))
+        // counter: pawned firearm returned to the customer, with a Proceed transfer record (when settings require it)
+        || (isStaff() && resource.data.status == 'collateral-active' && request.resource.data.status == 'released' && resource.data.get('isFirearm', false) == true
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'releaseTransferId', 'updatedAt', 'updatedBy'])
+            && ((exists(/databases/$(db)/documents/config/settings)
+                  && !get(/databases/$(db)/documents/config/settings).data.get('firearms', {}).get('redemptionNeedsTransfer', true))
+                || (existsAfter(/databases/$(db)/documents/firearmTransfers/$(request.resource.data.releaseTransferId))
+                    && getAfter(/databases/$(db)/documents/firearmTransfers/$(request.resource.data.releaseTransferId)).data.nicsResult == 'Proceed'
+                    && getAfter(/databases/$(db)/documents/firearmTransfers/$(request.resource.data.releaseTransferId)).data.itemId == resource.id))); }
     // Staff run the counter (issue, redeem, renew); only whitelisted fields may change, and only managers/owner may forfeit.
     match /loans/{id}       { allow read, create: if isStaff(); allow delete: if false;
       allow update: if isStaff() && request.resource.data.diff(resource.data).affectedKeys()
@@ -42,6 +61,12 @@ service cloud.firestore {
       allow update: if isMgr() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['policeReport', 'updatedAt', 'updatedBy']); }
     // Sales are permanent records (returns/voids will be new records created by the owner).
     match /sales/{id}       { allow read, create: if isStaff(); allow update, delete: if false; }
+    // ---- Firearms: append-only records ----
+    match /adBook/{id}      { allow read, create: if isStaff(); allow delete: if false;
+      allow update: if isStaff() && resource.data.get('disp', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disp', 'updatedAt', 'updatedBy']); }   // a disposition can be added once
+    match /firearmTransfers/{id} { allow read: if isStaff(); allow create: if isStaff() && request.resource.data.nicsResult == 'Proceed'; allow update, delete: if false; }
+    match /firearmChecks/{id}    { allow read: if isStaff(); allow create: if isStaff(); allow update, delete: if false; }
     match /transactions/{id}{ allow create: if isStaff(); allow read: if isMgr(); allow update, delete: if false; } // voids are new records
     // Users may read only their own role; nobody can write roles from the app (console only).
     match /roles/{uid}      { allow read: if request.auth != null && request.auth.uid == uid; allow write: if false; }

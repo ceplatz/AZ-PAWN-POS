@@ -29,7 +29,18 @@ export const CONFIG = {
     resaleHoldDays: null,         // VERIFY CT/municipal hold length; null = not confirmed
     policeReporting: { vendor: null }, // LeadsOnline / BWI / local PD. VERIFY
     verified: false,              // ticket content verified (set from Settings); never show "compliant" labels while false
+    firearmsVerified: false,      // firearms settings verified with ATF guidance / firearms attorney
     loanTermsVerified: false,     // loan rate/term verified by owner/counsel (set from Settings)
+  },
+  // Firearms (FFL). EVERY value here is VERIFY with ATF guidance / a firearms attorney. Nothing is assumed compliant.
+  firearms: {
+    types: ['Pistol', 'Revolver', 'Rifle', 'Shotgun', 'Receiver / frame', 'Other'],   // VERIFY against the A&D book format you must use
+    handgunTypes: ['Pistol', 'Revolver'],
+    checklist: [],                 // owner-defined required steps at transfer (e.g. CT permit/eligibility, waiting period). VERIFY
+    minAgeHandgun: null, minAgeLongGun: null,   // null = not enforced. VERIFY
+    multipleHandgunDays: null,     // alert when the same buyer gets a 2nd handgun within N days; null = off. VERIFY
+    require4473Image: false,       // require a photo/scan of the completed 4473
+    redemptionNeedsTransfer: true, // pawned firearms returned to the customer go through the transfer flow. VERIFY (conservative default)
   },
   roles: ['owner', 'manager', 'staff'],
 };

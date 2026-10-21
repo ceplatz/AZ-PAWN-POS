@@ -7,6 +7,7 @@ import { newItemRef, uploadItemPhotos, itemData, initialStatus } from './items.j
 import { renew } from './loan-engine.js';
 import { termsFromConfig, summarize, splitCost, todayET } from './loans-logic.js';
 
+export const hasFirearmCollateral = (loan) => (loan.itemSummaries || []).some((i) => i.category === 'Firearm');
 const who = () => ({ employeeUid: auth.currentUser?.uid || null, employeeEmail: auth.currentUser?.email || null });
 const txRecord = (t) => ({ ...t, date: todayET(), ...who(), createdAt: serverTimestamp() });
 
@@ -50,6 +51,7 @@ export async function redeemLoan(loan, { method = 'cash' } = {}) {
   const asOf = todayET(), s = summarize(loan, asOf);
   if (s.status === 'defaulted') throw new Error('This loan is past forfeiture and cannot be redeemed');
   if (['redeemed', 'forfeited'].includes(loan.status)) throw new Error('This loan is already closed');
+  if (CONFIG.firearms.redemptionNeedsTransfer && hasFirearmCollateral(loan)) throw new Error('This loan includes a firearm. Redeem it from the Firearms page so the transfer is recorded.');
   const b = writeBatch(db);
   b.update(doc(db, 'loans', loan.id), { status: 'redeemed', closedDate: asOf, history: [...(loan.history || []), entry('redeemed', s.payoff, asOf)], ...stamp() });
   loan.itemIds.forEach((id) => b.update(doc(db, 'items', id), { status: 'released', ...stamp() }));
