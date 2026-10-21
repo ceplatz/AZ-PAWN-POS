@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isSellable, blockedReason, computeTotals, changeDue, lineMargin, searchItems, FIREARM_BLOCK } from '../js/sell-logic.js';
+import { findByScan, isSellable, blockedReason, computeTotals, changeDue, lineMargin, searchItems, FIREARM_BLOCK } from '../js/sell-logic.js';
 
 test('sellable: for sale, or hold date reached; never during hold or when hold unset', () => {
   assert.equal(isSellable({ status: 'for-sale' }, '2026-11-01'), true);
@@ -28,4 +28,9 @@ test('margin and search', () => {
   assert.equal(lineMargin(5000, 3000), 2000); assert.equal(lineMargin(5000, null), null); assert.equal(lineMargin(1000, 3000), -2000);
   const items = [{ id: 'a', title: 'DeWalt drill', serial: 'X1' }, { id: 'b', title: 'Guitar', brand: 'Fender' }];
   assert.equal(searchItems(items, 'fender').length, 1); assert.equal(searchItems(items, 'x1')[0].id, 'a'); assert.equal(searchItems(items, '').length, 2);
+});
+test('scanned tag barcode finds the item by its 10-character code', () => {
+  const items = [{ id: 'AbCdEfGhIjKlMnOpQrSt' }, { id: 'ZZZZZZZZZZ1111111111' }];
+  assert.equal(findByScan(items, 'AbCdEfGhIj').id, 'AbCdEfGhIjKlMnOpQrSt'); assert.equal(findByScan(items, ' ZZZZZZZZZZ ').id, 'ZZZZZZZZZZ1111111111');
+  assert.equal(findByScan(items, 'short'), null); assert.equal(findByScan(items, 'nomatch123'), null);
 });

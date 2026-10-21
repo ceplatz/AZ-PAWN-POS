@@ -19,6 +19,8 @@ export function changeDue(tenderedCents, total) {
   if (tenderedCents == null) return null;
   return tenderedCents >= total ? { change: tenderedCents - total } : { error: `Short by ${((total - tenderedCents) / 100).toFixed(2)}` };
 }
+/** Exact tag-barcode match (a scanner types the 10-character code). */
+export const findByScan = (items, code) => (String(code).trim().length >= 10 ? items.find((i) => i.id.startsWith(String(code).trim())) || null : null);
 export const searchItems = (items, q) => {
   const t = q.trim().toLowerCase(); if (!t) return items;
   return items.filter((i) => [i.title, i.brand, i.model, i.serial, i.location, i.id].join(' ').toLowerCase().includes(t));

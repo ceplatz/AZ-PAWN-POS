@@ -63,7 +63,7 @@
   import { watchAuth } from './js/firebase.js';
   import { listCustomers } from './js/customers.js';
   import { parseMoney, fmtMoney, photoUrl } from './js/items.js';
-  import { blockedReason, computeTotals, changeDue, lineMargin, searchItems } from './js/sell-logic.js';
+  import { blockedReason, computeTotals, changeDue, lineMargin, searchItems, findByScan } from './js/sell-logic.js';
   import { listSellable, createSale, listSales } from './js/sales.js';
   import { saleReceiptHtml } from './js/receipt.js';
   import { TICKET_CSS } from './js/ticket.js';
@@ -92,6 +92,13 @@
     document.querySelectorAll('img[data-p]').forEach(async (im) => { try { im.src = await photoUrl(im.dataset.p); } catch { /* none */ } });
   }
   $('q').oninput = paintItems;
+  $('q').onkeydown = (e) => {   // a barcode scanner types the tag code then presses Enter
+    if (e.key !== 'Enter') return; e.preventDefault(); const item = findByScan(items, $('q').value); if (!item) return;
+    const why = blockedReason(item, todayET());
+    if (item.isFirearm && ['for-sale', 'on-hold'].includes(item.status)) return (location.href = `firearms.html?sell=${item.id}`);
+    if (why) return say(why, 'bad'); if (cart.some((c) => c.item.id === item.id)) return;
+    say(''); cart.push({ item, price: item.askPrice ?? null, text: item.askPrice != null ? (item.askPrice / 100).toFixed(2) : '' }); $('q').value = ''; paintItems(); paint();
+  };
   $('items').onclick = (e) => {
     const r = e.target.closest('.row'); if (!r) return; const item = items.find((i) => i.id === r.dataset.id), why = blockedReason(item, todayET());
     if (item.isFirearm && ['for-sale', 'on-hold'].includes(item.status)) return (location.href = `firearms.html?sell=${item.id}`);

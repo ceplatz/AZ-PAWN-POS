@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>AZ Pawn Live</title>
+<link rel="manifest" href="owner-live.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  main { max-width:760px; padding-top:18px; gap:16px; } .grid { display:grid; gap:12px; grid-template-columns:1fr 1fr; } @media (min-width:620px) { .grid.g3 { grid-template-columns:repeat(3,1fr); } }
+  .card { border:1px solid var(--line); border-radius:18px; padding:14px 16px; background:linear-gradient(160deg,var(--panel-2),var(--panel)); min-width:0; } .card h3 { margin:0 0 4px; font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+  .big { font-size:clamp(1.5rem,6vw,2.2rem); font-weight:800; line-height:1.1; } .hero .big { font-size:clamp(2.2rem,10vw,3.4rem); color:var(--accent); } .muted { color:var(--muted); font-size:.8rem; }
+  h2.sec { margin:6px 2px 0; font-size:.8rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600; } .names { font-size:.95rem; line-height:1.5; } .warn .big { color:var(--bad); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<header><div class="brand"><img class="logo-sm" src="img/logo.webp" alt="" width="40" height="40"><div class="wordmark">Live<small id="upd">connecting…</small></div></div><div class="spacer"></div>
+  <div class="pill"><span class="dot off" id="dot"></span><span id="status">Connecting</span></div></header>
+<main id="page" hidden>
+  <div class="card hero"><h3>Today's sales</h3><div class="big" id="rev">—</div><div class="muted" id="revSub"></div></div>
+  <div class="grid g3"><div class="card"><h3>Transactions</h3><div class="big" id="txn">—</div></div><div class="card"><h3>Cash in</h3><div class="big" id="cashIn">—</div><div class="muted" id="cashNet"></div></div><div class="card"><h3>Card in</h3><div class="big" id="cardIn">—</div></div></div>
+
+  <h2 class="sec">Money on the street</h2>
+  <div class="grid g3"><div class="card"><h3>Principal out</h3><div class="big" id="out">—</div><div class="muted" id="outSub"></div></div><div class="card"><h3>Interest owed</h3><div class="big" id="int">—</div></div><div class="card"><h3>Open loans</h3><div class="big" id="open">—</div></div></div>
+
+  <h2 class="sec">Today's loan activity</h2>
+  <div class="grid g3"><div class="card"><h3>New loans</h3><div class="big" id="newL">—</div><div class="muted" id="newLsub"></div></div><div class="card"><h3>Redemptions</h3><div class="big" id="redL">—</div><div class="muted" id="redLsub"></div></div><div class="card" id="defCard"><h3>Defaulted today</h3><div class="big" id="defL">—</div><div class="muted" id="defSub"></div></div></div>
+
+  <h2 class="sec">Inventory</h2>
+  <div class="grid g3"><div class="card"><h3>On hand (cost)</h3><div class="big" id="invCost">—</div><div class="muted" id="invUnits"></div></div><div class="card"><h3>On hand (retail)</h3><div class="big" id="invRetail">—</div></div><div class="card"><h3>Sellable today</h3><div class="big" id="sellable">—</div><div class="muted">hold ended today</div></div></div>
+
+  <h2 class="sec">Staff</h2>
+  <div class="card"><h3>Clocked in now</h3><div class="names" id="here">—</div></div>
+</main>
+<script type="module">
+  import './js/register-sw.js';
+  import { watchAuth } from './js/firebase.js';
+  import { loadAlerts, listTransactions } from './js/insights-data.js';
+  import { dailyReport } from './js/daily-logic.js';
+  import { todayET } from './js/dates.js';
+  import { fmtMoney } from './js/item-logic.js';
+  import { onFloor } from './js/inventory-logic.js';
+  import { allEntries } from './js/timeclock.js';
+  const $ = (id) => document.getElementById(id), esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const tm = (iso) => new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  let okAt = 0;
+  async function refresh() {
+    const today = todayET();
+    try {
+      const [{ alerts: a, items }, txs] = await Promise.all([loadAlerts(today), listTransactions(today, today)]), r = dailyReport(txs, today);
+      $('rev').textContent = fmtMoney(r.sales.amount); $('revSub').textContent = `${r.sales.count} sale(s) · tax ${fmtMoney(r.sales.tax)}`; $('txn').textContent = r.transactions;
+      $('cashIn').textContent = fmtMoney(r.cash.in); $('cashNet').textContent = `net ${fmtMoney(r.cash.net)}`; $('cardIn').textContent = fmtMoney(r.card.in);
+      $('out').textContent = fmtMoney(a.money.principalOut); $('outSub').textContent = 'on the street'; $('int').textContent = fmtMoney(a.money.interestOwed); $('open').textContent = a.money.openLoans;
+      $('newL').textContent = r.loansOut.count; $('newLsub').textContent = fmtMoney(r.loansOut.amount); $('redL').textContent = r.redemptions.count; $('redLsub').textContent = fmtMoney(r.redemptions.amount);
+      $('defL').textContent = a.defaultedToday.length; $('defSub').textContent = `${a.readyToForfeit.length} ready to forfeit`; $('defCard').classList.toggle('warn', a.readyToForfeit.length > 0);
+      const f = onFloor(items); $('invCost').textContent = fmtMoney(f.reduce((t, i) => t + (i.costBasis || 0), 0)); $('invUnits').textContent = `${f.length} items`; $('invRetail').textContent = fmtMoney(f.reduce((t, i) => t + (i.askPrice || 0), 0)); $('sellable').textContent = a.holdEndingToday.length;
+      try { const here = (await allEntries(today, today)).filter((e) => !e.outAt); $('here').innerHTML = here.length ? here.map((e) => `${esc(e.employeeEmail)} <span class="muted">since ${tm(e.inAt)}</span>`).join('<br>') : '<span class="muted">Nobody is clocked in.</span>'; } catch { $('here').textContent = '—'; }
+      okAt = Date.now(); live(true);
+    } catch (e) { console.error(e); live(false); }
+  }
+  function live(ok) { $('dot').classList.toggle('off', !ok); $('status').textContent = ok ? 'Live' : navigator.onLine ? 'Reconnecting' : 'Offline'; $('upd').textContent = okAt ? `updated ${new Date(okAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })}` : 'connecting…'; }
+  watchAuth((u, r) => { if (!u || !r || r === 'staff') return location.replace('index.html'); $('page').hidden = false; refresh(); setInterval(refresh, 30000); document.addEventListener('visibilitychange', () => !document.hidden && refresh()); });
+  addEventListener('online', refresh); addEventListener('offline', () => live(false));
+</script>
+</body>
+</html>

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c151e">
 <title>AZ Pawn of Salem</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
@@ -89,6 +91,7 @@
 
 <script type="module">
   import { watchAuth, login, logout } from './js/firebase.js';
+  import './js/register-sw.js';
   import { askPin, isUnlocked, markUnlocked, clearUnlocked, IDLE_MS } from './js/pin-gate.js';
   const $ = (id) => document.getElementById(id);
   const open = (t) => { $('msg').textContent = t; $('dlg').showModal(); };
@@ -96,7 +99,7 @@
 
   // ---- owner PIN gate ----
   const MODS = [['Reports of the Day', 'daily.html'], ['Briefing', 'briefing.html'], ['Reports & insights', 'reports.html'], ['Loans ledger', 'loans.html'], ['Customers', 'customers.html'], ['Inventory management', 'inventory.html'],
-    ['Firearms A&D book', 'firearms.html'], ['Police reports', 'compliance.html'], ['Time clock', 'timeclock.html'], ['Messaging', 'messages.html'], ['Reminders', 'reminders.html'], ['Cash management', 'cash.html'], ['Settings', 'settings.html', true]];
+    ['Firearms A&D book', 'firearms.html'], ['Police reports', 'compliance.html'], ['Time clock', 'timeclock.html'], ['Print tags', 'tags.html'], ['Live dashboard', 'owner-live.html'], ['Messaging', 'messages.html'], ['Reminders', 'reminders.html'], ['Cash management', 'cash.html'], ['Settings', 'settings.html', true]];
   $('mods').innerHTML = MODS.map(([n, href]) => href
     ? `<a class="mod" href="${href}" data-owner="${MODS.find(m => m[0] === n)[2] ? 1 : ''}" style="text-decoration:none;color:inherit;cursor:pointer"><em style="color:var(--good)">Open</em><b>${n}</b><span>${n === 'Settings' ? 'Owner only: shop, loan terms, ticket, compliance' : 'Open this page'}</span></a>`
     : `<div class="mod"><em>Soon</em><b>${n}</b><span>Coming in a later build step</span></div>`).join('');

@@ -33,3 +33,6 @@ export function initialStatus(source, today = todayET(), days = CONFIG.complianc
 }
 /** Instant the hold ends (midnight Eastern standard time of that date), stored so firestore.rules can enforce it server-side. */
 export const holdUntilMs = (date) => { const [y, m, d] = date.split('-').map(Number); return Date.UTC(y, m - 1, d) + 5 * 3600 * 1000; };
+
+/** The short code printed as a barcode on item tags (first 10 characters of the item id). */
+export const scanCode = (id) => String(id).slice(0, 10);
