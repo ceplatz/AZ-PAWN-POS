@@ -23,9 +23,13 @@ export const fmtMoney = (c) => (c == null ? '—' : (c / 100).toLocaleString('en
  * for the owner to release manually. Never guess a hold period.
  */
 export function initialStatus(source, today = todayET(), days = CONFIG.compliance.resaleHoldDays) {
-  if (source === 'pawn-collateral') return { status: 'collateral-active', holdUntil: null };
-  if (days == null) return { status: 'on-hold', holdUntil: null };
-  if (days === 0) return { status: 'for-sale', holdUntil: null };
+  const none = { holdUntil: null, holdUntilMs: null };
+  if (source === 'pawn-collateral') return { status: 'collateral-active', ...none };
+  if (days == null) return { status: 'on-hold', ...none };
+  if (days === 0) return { status: 'for-sale', ...none };
   const d = new Date(today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days);
-  return { status: 'on-hold', holdUntil: d.toISOString().slice(0, 10) };
+  const holdUntil = d.toISOString().slice(0, 10);
+  return { status: 'on-hold', holdUntil, holdUntilMs: holdUntilMs(holdUntil) };
 }
+/** Instant the hold ends (midnight Eastern standard time of that date), stored so firestore.rules can enforce it server-side. */
+export const holdUntilMs = (date) => { const [y, m, d] = date.split('-').map(Number); return Date.UTC(y, m - 1, d) + 5 * 3600 * 1000; };

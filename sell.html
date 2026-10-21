@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Sell · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style id="tcss"></style>
+<style>
+  input, select { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:13px 14px; font:inherit; transition:.15s; }
+  input:focus, select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  main { max-width:1000px; } .cols { display:grid; gap:18px; grid-template-columns:1.2fr 1fr; align-items:start; } @media (max-width:800px) { .cols { grid-template-columns:1fr; } }
+  fieldset { border:1px solid var(--line); border-radius:16px; padding:16px; margin:0; background:var(--panel); min-width:0; }
+  legend { padding:0 8px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+  .list { display:grid; gap:8px; max-height:60vh; overflow:auto; margin-top:10px; }
+  .row { display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); cursor:pointer; flex-wrap:wrap; }
+  .row:hover { border-color:var(--accent); } .row.off { opacity:.55; cursor:not-allowed; } .row .sp { flex:1; } .row small { color:var(--muted); display:block; }
+  .th { width:54px; height:44px; border-radius:8px; background:#0a121a; object-fit:cover; flex:none; }
+  .tag { font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px; white-space:nowrap; } .tag.bad { color:var(--bad); }
+  .cart .row { cursor:default; } .cart input { width:110px; text-align:right; }
+  .sum { display:grid; grid-template-columns:1fr auto; gap:6px 14px; margin:14px 0; } .sum b { text-align:right; } .big { font-size:1.7rem; color:var(--accent); }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+  .msg { min-height:1.4em; margin:10px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); } .note { color:var(--muted); font-size:.85rem; }
+  [hidden] { display:none !important; } #done .ticket { margin:14px auto; } .btn { text-decoration:none; padding:12px 16px; border:1px solid var(--line); border-radius:10px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a>
+  <div class="wordmark" style="margin-left:6px">Sell</div><div class="spacer"></div>
+  <button class="ghost" id="recentBtn">Recent sales</button>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div>
+</header>
+<main id="flow">
+  <div id="recent" hidden><fieldset><legend>Recent sales (tap to reprint)</legend><div class="list" id="recentList" style="max-height:none"></div></fieldset></div>
+  <div class="cols">
+    <fieldset><legend>Find an item</legend>
+      <input id="q" type="search" placeholder="Search title, brand, model, serial, bin" autocomplete="off" style="width:100%">
+      <div class="list" id="items"><p class="note">Loading…</p></div></fieldset>
+    <div style="display:grid;gap:18px">
+      <fieldset class="cart"><legend>Sale</legend>
+        <div id="cart" class="list" style="max-height:none"><p class="note">Tap an item to add it.</p></div>
+        <div class="sum"><span>Subtotal</span><b id="sub">$0.00</b><span id="taxLbl">Sales tax</span><b id="tax">$0.00</b><span>Total</span><b class="big" id="total">$0.00</b>
+          <span id="marginLbl" hidden>Margin (managers)</span><b id="margin" hidden></b></div>
+        <p class="msg warn" id="taxWarn" hidden>Sales tax rate is not set in Settings (VERIFY). This sale would have $0 tax.</p>
+        <div class="actions"><label class="note">Paid by <select id="method"><option value="cash">Cash</option><option value="card">Card / check</option></select></label>
+          <label class="note" id="tendWrap">Tendered $ <input id="tend" inputmode="decimal" style="width:100px"></label></div>
+        <p class="note" id="change"></p>
+        <p class="note" id="custLine">Customer: walk-in. <button class="ghost" id="custBtn" type="button" style="padding:6px 10px">Attach customer</button></p>
+        <div id="custFind" hidden><input id="cq" type="search" placeholder="Search customer" style="width:100%"><div class="list" id="cres" style="max-height:160px"></div></div>
+        <button class="gold" id="pay" style="width:100%;padding:16px;margin-top:10px">Complete sale</button><p class="msg" id="msg" role="alert"></p></fieldset>
+    </div>
+  </div>
+</main>
+<section id="done" hidden style="max-width:860px;margin:0 auto;padding:20px">
+  <p class="msg good" id="doneMsg" style="font-size:1.1rem"></p>
+  <div class="actions"><button class="gold" id="printBtn">Print receipt</button><a class="ghost btn" href="sell.html">New sale</a></div>
+  <div id="preview"></div></section>
+<div id="printArea"></div>
+
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { listCustomers } from './js/customers.js';
+  import { parseMoney, fmtMoney, photoUrl } from './js/items.js';
+  import { blockedReason, computeTotals, changeDue, lineMargin, searchItems } from './js/sell-logic.js';
+  import { listSellable, createSale, listSales } from './js/sales.js';
+  import { saleReceiptHtml } from './js/receipt.js';
+  import { TICKET_CSS } from './js/ticket.js';
+  import { todayET } from './js/dates.js';
+  import { CONFIG } from './js/config.js';
+
+  const $ = (id) => document.getElementById(id); $('tcss').textContent = TICKET_CSS;
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const say = (t, k = '') => { $('msg').textContent = t; $('msg').className = 'msg ' + k; };
+  let items = [], cart = [], role = null, cust = null, people = [];
+  const mgr = () => role === 'owner' || role === 'manager';
+
+  watchAuth(async (user, r) => {
+    if (!user || !r) return location.replace('index.html'); role = r; paint();
+    try { items = await listSellable(); paintItems(); } catch { $('items').innerHTML = '<p class="note">Could not load inventory. Check your connection.</p>'; }
+    try { people = await listCustomers(); } catch { /* optional */ }
+  });
+
+  function paintItems() {
+    const today = todayET(), inCart = new Set(cart.map((c) => c.item.id));
+    const rows = searchItems(items, $('q').value).filter((i) => !inCart.has(i.id)).slice(0, 60);
+    $('items').innerHTML = rows.map((i) => { const why = blockedReason(i, today);
+      return `<div class="row ${why ? 'off' : ''}" data-id="${i.id}" ${why ? 'aria-disabled="true"' : ''}>${i.photos?.[0] ? `<img class="th" alt="" data-p="${esc(i.photos[0])}">` : '<div class="th"></div>'}
+      <div><b>${esc(i.title)}</b><small>${esc(i.category)}${i.serial ? ' · SN ' + esc(i.serial) : ''}${i.location ? ' · ' + esc(i.location) : ''}</small></div><span class="sp"></span>
+      ${why ? `<span class="tag bad">${esc(why.length > 40 ? 'Firearm: not in app yet' : why)}</span>` : `<b>${fmtMoney(i.askPrice)}</b>`}</div>`; }).join('') || '<p class="note">No sellable items found.</p>';
+    document.querySelectorAll('img[data-p]').forEach(async (im) => { try { im.src = await photoUrl(im.dataset.p); } catch { /* none */ } });
+  }
+  $('q').oninput = paintItems;
+  $('items').onclick = (e) => {
+    const r = e.target.closest('.row'); if (!r) return; const item = items.find((i) => i.id === r.dataset.id), why = blockedReason(item, todayET());
+    if (why) return say(why, 'bad'); say('');
+    cart.push({ item, price: item.askPrice ?? null, text: item.askPrice != null ? (item.askPrice / 100).toFixed(2) : '' }); paintItems(); paint();
+  };
+
+  function paint() {
+    $('cart').innerHTML = cart.map((c, i) => `<div class="row"><div><b>${esc(c.item.title)}</b><small>${esc(c.item.serial ? 'SN ' + c.item.serial : c.item.category)}</small></div><span class="sp"></span>
+      <input data-i="${i}" value="${esc(c.text)}" inputmode="decimal" placeholder="Price $" aria-label="Price"><button class="ghost" data-rm="${i}" type="button">✕</button></div>`).join('') || '<p class="note">Tap an item to add it.</p>';
+    const prices = cart.map((c) => c.price ?? 0), t = computeTotals(prices, CONFIG.shop.taxRate ?? null);
+    $('sub').textContent = fmtMoney(t.subtotal); $('tax').textContent = fmtMoney(t.tax); $('total').textContent = fmtMoney(t.total);
+    $('taxLbl').textContent = t.taxKnown ? `Sales tax (${(CONFIG.shop.taxRate * 100).toFixed(3).replace(/\.?0+$/, '')}%)` : 'Sales tax'; $('taxWarn').hidden = t.taxKnown || !cart.length;
+    const m = mgr(); $('marginLbl').hidden = $('margin').hidden = !(m && cart.length);
+    if (m) { const ms = cart.map((c) => lineMargin(c.price ?? 0, c.item.costBasis ?? null)); $('margin').textContent = ms.some((x) => x == null) ? 'cost missing on an item' : fmtMoney(ms.reduce((a, b) => a + b, 0)); }
+    $('tendWrap').hidden = $('method').value !== 'cash';
+    const ch = $('method').value === 'cash' ? changeDue(parseMoney($('tend').value), t.total) : null;
+    $('change').textContent = ch?.error ? ch.error : ch ? `Change due: ${fmtMoney(ch.change)}` : '';
+  }
+  $('cart').oninput = (e) => { const i = e.target.dataset.i; if (i == null) return; const v = e.target.value.trim(); cart[i].text = v; cart[i].price = v ? parseMoney(v) : null; paint0(); };
+  const paint0 = () => { const keep = document.activeElement; const pos = keep?.selectionStart; paint(); const el = keep?.dataset?.i != null ? $('cart').querySelector(`[data-i="${keep.dataset.i}"]`) : null; if (el) { el.focus(); el.setSelectionRange(pos, pos); } };
+  $('cart').onclick = (e) => { if (e.target.dataset.rm != null) { cart.splice(+e.target.dataset.rm, 1); paintItems(); paint(); } };
+  $('method').onchange = $('tend').oninput = paint;
+
+  $('custBtn').onclick = () => { $('custFind').hidden = !$('custFind').hidden; };
+  $('cq').oninput = () => {
+    const q = $('cq').value.trim().toLowerCase();
+    $('cres').innerHTML = q ? people.filter((c) => `${c.firstName} ${c.lastName}`.toLowerCase().includes(q)).slice(0, 8).map((c) => `<div class="row" data-id="${c.id}"><b>${esc(c.lastName)}, ${esc(c.firstName)}</b></div>`).join('') : '';
+  };
+  $('cres').onclick = (e) => { const r = e.target.closest('.row'); if (!r) return; cust = people.find((c) => c.id === r.dataset.id); $('custLine').innerHTML = `Customer: <b>${esc(cust.firstName)} ${esc(cust.lastName)}</b> <button class="ghost" id="custClr" style="padding:6px 10px" type="button">Remove</button>`; $('custFind').hidden = true; $('custClr').onclick = () => { cust = null; $('custLine').innerHTML = 'Customer: walk-in.'; }; };
+
+  $('pay').onclick = async () => {
+    if (!cart.length) return say('Add at least one item.', 'bad');
+    const bad = cart.findIndex((c) => !c.price || c.price <= 0); if (bad >= 0) return say(`Enter a valid price for "${cart[bad].item.title}".`, 'bad');
+    const t = computeTotals(cart.map((c) => c.price), CONFIG.shop.taxRate ?? null), method = $('method').value;
+    let tendered = null;
+    if (method === 'cash' && $('tend').value.trim()) { tendered = parseMoney($('tend').value); const ch = changeDue(tendered, t.total); if (tendered == null || ch.error) return say(ch?.error || 'Tendered amount is not valid.', 'bad'); }
+    const loss = cart.filter((c) => c.item.costBasis != null && c.price < c.item.costBasis);
+    if (loss.length && !confirm(`${loss.length} item(s) are priced below what the shop paid. Sell anyway?`)) return;
+    if (!t.taxKnown && !confirm('The sales tax rate is not set in Settings, so this sale has $0 tax. Continue?')) return;
+    if (!confirm(`Complete the sale for ${fmtMoney(t.total)}?`)) return;
+    $('pay').disabled = true; say('Saving…');
+    try {
+      const sale = await createSale({ lines: cart, customer: cust, method, tendered });
+      const html = saleReceiptHtml({ sale, customer: cust }); $('preview').innerHTML = html; $('printArea').innerHTML = html;
+      $('doneMsg').textContent = `Sale complete. Receipt #${sale.receiptNumber}: ${fmtMoney(sale.total)}${sale.tendered != null ? `, change ${fmtMoney(sale.tendered - sale.total)}` : ''}.`;
+      $('flow').hidden = true; $('done').hidden = false; $('printBtn').onclick = () => print();
+    } catch (err) { say(/no longer available/.test(err.message) ? err.message : 'Could not complete the sale. Check your connection and try again. Nothing was charged.', 'bad'); console.error(err); }
+    finally { $('pay').disabled = false; }
+  };
+
+  $('recentBtn').onclick = async () => {
+    $('recent').hidden = !$('recent').hidden; if ($('recent').hidden) return;
+    try { const rows = await listSales();
+      $('recentList').innerHTML = rows.map((s) => `<div class="row" data-id="${s.id}"><b>#${s.receiptNumber}</b><small>${esc(s.date)} · ${s.lines.length} item(s)</small><span class="sp"></span><b>${fmtMoney(s.total)}</b></div>`).join('') || '<p class="note">No sales yet.</p>';
+      $('recentList').onclick = (e) => { const r = e.target.closest('.row'); if (!r) return; const s = rows.find((x) => x.id === r.dataset.id); $('printArea').innerHTML = saleReceiptHtml({ sale: s, customer: s.customerName ? { firstName: s.customerName.split(' ')[0], lastName: s.customerName.split(' ').slice(1).join(' ') } : null }); print(); };
+    } catch { $('recentList').innerHTML = '<p class="note">Could not load sales.</p>'; }
+  };
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline (sales need a connection)'; $('dot').classList.toggle('off', !on); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

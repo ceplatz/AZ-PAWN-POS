@@ -22,6 +22,7 @@ export const CONFIG = {
     disclosureText: '',           // REQUIRED state disclosures: owner/attorney supplies the exact text. VERIFY
     receiptStatement: '',         // seller's ownership statement on purchase receipts: owner/attorney supplies. VERIFY
     firstBuyNumber: 5001,
+    firstSaleNumber: 9001,
   },
   compliance: {
     minSellerAge: null,           // minimum age to pawn/sell to the shop; null = not enforced. VERIFY

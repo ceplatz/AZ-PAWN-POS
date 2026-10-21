@@ -163,7 +163,7 @@
       + (cur.status === 'on-hold' && !cur.holdUntil ? ' <span class="tag" style="color:var(--bad)">Hold period not set (VERIFY)</span>' : '')
       + (cur.holdUntil ? ` <span class="tag">Hold until ${esc(cur.holdUntil)}</span>` : '');
     $('dInfo').innerHTML = [['Category', cur.category], ['Brand', cur.brand], ['Model', cur.model], ['Serial', cur.serial], ['Condition', cur.condition],
-      ['Location', cur.location], ['Cost', fmtMoney(cur.costBasis)], ['Asking', fmtMoney(cur.askPrice)], ['Acquired', cur.acquiredDate]]
+      ['Location', cur.location], ...((role === 'owner' || role === 'manager') ? [['Cost', fmtMoney(cur.costBasis)]] : []), ['Asking', fmtMoney(cur.askPrice)], ['Acquired', cur.acquiredDate]]
       .map(([k, v]) => `<div><span style="display:block;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${k}</span><b>${esc(v || '—')}</b></div>`).join('');
     $('dNotes').textContent = cur.notes || '';
     $('dPhotos').innerHTML = (cur.photos || []).map(() => '<div class="ph"><img alt=""></div>').join('');

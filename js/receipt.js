@@ -29,3 +29,24 @@ export function buyReceiptHtml({ purchase: p, customer, ids = {}, cfg = CONFIG }
     <p class="sig">Seller signature: ______________________________ &nbsp; Date: ____________</p>
   </div>`;
 }
+
+/** Retail sale receipt (no DRAFT banner; missing shop info is shown as red placeholders). */
+export function saleReceiptHtml({ sale: x, customer = null, cfg = CONFIG }) {
+  const s = cfg.shop, missing = (v, label) => (v ? esc(v) : `<b class="warn">[${label} not set]</b>`);
+  const rate = x.taxRate == null ? '<b class="warn">[tax rate not set]</b>' : `${(x.taxRate * 100).toFixed(3).replace(/\.?0+$/, '')}%`;
+  return `<div class="ticket">
+    <h1>${esc(s.name)}</h1>
+    <p>${missing(s.address, 'shop address')}${s.phone ? ' &middot; ' + esc(s.phone) : ''}</p>
+    <h2>SALES RECEIPT #${x.receiptNumber}</h2>
+    <table><tr><th>Date</th><td>${us(x.date)}</td><th>Cashier</th><td>${esc(x.createdByEmail || '')}</td></tr>
+      ${customer ? `<tr><th>Customer</th><td colspan="3">${esc(customer.firstName)} ${esc(customer.lastName)}</td></tr>` : ''}</table>
+    <table class="items"><tr><th>#</th><th>Item</th><th>Serial</th><th>Price</th></tr>
+      ${x.lines.map((l, n) => `<tr><td>${n + 1}</td><td>${esc(l.title)}</td><td>${esc(l.serial)}</td><td>${fmtMoney(l.price)}</td></tr>`).join('')}
+      <tr><th colspan="3" style="text-align:right">Subtotal</th><td>${fmtMoney(x.subtotal)}</td></tr>
+      <tr><th colspan="3" style="text-align:right">Sales tax (${rate})</th><td>${fmtMoney(x.tax)}</td></tr>
+      <tr><th colspan="3" style="text-align:right">TOTAL (${esc(x.method)})</th><td><b>${fmtMoney(x.total)}</b></td></tr>
+      ${x.tendered != null ? `<tr><th colspan="3" style="text-align:right">Cash tendered</th><td>${fmtMoney(x.tendered)}</td></tr><tr><th colspan="3" style="text-align:right">Change</th><td>${fmtMoney(x.tendered - x.total)}</td></tr>` : ''}
+    </table>
+    <p>Thank you for shopping at ${esc(s.name)}.</p>
+  </div>`;
+}
