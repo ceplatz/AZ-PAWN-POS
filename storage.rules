@@ -1,0 +1,13 @@
+rules_version = '2';
+// ID and customer photos: any staff may upload, ONLY the owner may view. Role comes from the roles/{uid} document.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function role() { return firestore.get(/databases/(default)/documents/roles/$(request.auth.uid)).data.role; }
+    match /customers/{cid}/{file} {
+      allow read, update, delete: if request.auth != null && role() == 'owner';
+      allow create: if request.auth != null && role() in ['owner', 'manager', 'staff']
+        && request.resource.size < 3 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+    }
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}

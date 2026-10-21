@@ -9,9 +9,9 @@ service cloud.firestore {
     function isMgr() { return signedIn() && role() in ['owner', 'manager']; }
     function isStaff() { return signedIn() && role() in ['owner', 'manager', 'staff']; }
 
-    match /customers/{id}   { allow read, create, update: if isStaff(); allow delete: if false; }
+    match /customers/{id}   { allow read, create: if isStaff(); allow update: if isMgr(); allow delete: if false; }
     // Full ID images/numbers are owner-only; keep them in a separate doc.
-    match /customerIds/{id} { allow read, write: if isOwner(); }
+    match /customerIds/{id} { allow create: if isStaff(); allow read, update: if isOwner(); allow delete: if false; }
     match /items/{id}       { allow read, create, update: if isStaff(); allow delete: if false; }
     match /loans/{id}       { allow read, create, update: if isStaff(); allow delete: if false; }
     match /transactions/{id}{ allow read, create: if isStaff(); allow update, delete: if false; } // voids are new records

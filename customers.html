@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Customers · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  .bar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .bar input { flex:1; min-width:200px; }
+  input, select, textarea { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:13px 14px; font:inherit; width:100%; transition:.15s; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  .list { display:grid; gap:10px; }
+  .row { display:flex; align-items:center; gap:14px; padding:14px 18px; border:1px solid var(--line); border-radius:14px; background:linear-gradient(160deg,var(--panel-2),var(--panel)); }
+  .row b { font-size:1.02rem; } .row small { color:var(--muted); display:block; }
+  .row .sp { flex:1; } .tag { font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line-2); border-radius:999px; padding:4px 10px; }
+  .empty { color:var(--muted); text-align:center; padding:40px 0; }
+  .sheet { position:fixed; inset:0; z-index:15; overflow:auto; background:var(--bg); }
+  .sheet-in { max-width:860px; margin:0 auto; padding:18px 20px 60px; }
+  .sheet-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; } .sheet-top h2 { margin:0; flex:1; }
+  fieldset { border:1px solid var(--line); border-radius:16px; padding:18px; margin:0 0 16px; background:var(--panel); }
+  legend { padding:0 8px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+  .g { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); }
+  label span { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+  .photos { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); }
+  .ph { border:1px dashed var(--line-2); border-radius:14px; padding:10px; text-align:center; }
+  .ph img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; margin-bottom:8px; background:#0a121a; }
+  .ph .ghost { width:100%; } .ph img:not([src]) { display:none; }
+  .note { color:var(--muted); font-size:.85rem; margin:8px 0 0; }
+  .msg { min-height:1.4em; margin:10px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  dialog.cam { border:0; background:#000; padding:0; width:min(96vw,900px); border-radius:18px; }
+  .cam-in { padding:14px; } .cam-in h3 { margin:0 0 10px; }
+  .cam video { width:100%; max-height:70vh; background:#000; border-radius:12px; }
+  .cam-msg { color:var(--muted); min-height:1.3em; } .cam-bar { display:flex; justify-content:space-between; gap:10px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--accent); padding:12px 20px; border-radius:12px; z-index:30; }
+</style>
+</head>
+<body>
+<header>
+  <a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a>
+  <div class="wordmark" style="margin-left:6px">Customers</div>
+  <div class="spacer"></div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div>
+</header>
+
+<main>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Search name, phone, or last 4 of ID" autocomplete="off">
+    <button class="gold" id="newBtn">+ New customer</button>
+  </div>
+  <div class="list" id="list"><p class="empty">Loading…</p></div>
+</main>
+
+<div class="sheet" id="sheet" hidden><div class="sheet-in">
+  <div class="sheet-top"><h2>New customer</h2><button class="ghost" id="closeSheet">Cancel</button></div>
+
+  <fieldset><legend>1. ID capture</legend>
+    <div class="actions">
+      <button class="gold" type="button" id="scanBtn">Scan barcode on back of ID</button>
+      <button class="ghost" type="button" id="pasteBtn">Use handheld scanner / paste</button>
+    </div>
+    <textarea id="raw" rows="3" placeholder="Click here, then scan with a handheld scanner (or paste the barcode text)" hidden></textarea>
+    <div class="photos">
+      <div class="ph" data-k="front"><img alt=""><button type="button" class="ghost">Photo: ID front</button></div>
+      <div class="ph" data-k="back"><img alt=""><button type="button" class="ghost">Photo: ID back</button></div>
+      <div class="ph" data-k="customer"><img alt=""><button type="button" class="ghost">Photo: customer</button></div>
+    </div>
+    <p class="note">Scanning fills the form below. Always check every field against the ID. Photos are viewable by the owner only.</p>
+    <p class="msg" id="scanMsg"></p>
+  </fieldset>
+
+  <form id="form" novalidate>
+  <fieldset><legend>2. Customer</legend><div class="g">
+    <label><span>First name *</span><input name="firstName" autocomplete="off"></label>
+    <label><span>Middle</span><input name="middleName" autocomplete="off"></label>
+    <label><span>Last name *</span><input name="lastName" autocomplete="off"></label>
+    <label><span>Date of birth *</span><input name="dob" type="date"></label>
+    <label><span>Phone</span><input name="phone" type="tel" autocomplete="off"></label>
+    <label><span>Email</span><input name="email" type="email" autocomplete="off"></label>
+    <label><span>Street</span><input name="street" autocomplete="off"></label>
+    <label><span>City</span><input name="city" autocomplete="off"></label>
+    <label><span>State</span><input name="state" maxlength="2" autocomplete="off"></label>
+    <label><span>ZIP</span><input name="zip" maxlength="5" autocomplete="off"></label>
+  </div><p class="msg" id="ageMsg"></p></fieldset>
+
+  <fieldset><legend>3. ID details</legend><div class="g">
+    <label><span>ID type *</span><select name="idType"><option>Driver's license</option><option>State ID</option><option>Passport</option><option>Military ID</option><option>Other</option></select></label>
+    <label><span>ID number *</span><input name="idNumber" autocomplete="off"></label>
+    <label><span>Issuing state *</span><input name="idState" maxlength="2" autocomplete="off"></label>
+    <label><span>Expires *</span><input name="idExpiry" type="date"></label>
+  </div></fieldset>
+
+  <button class="gold" type="submit" id="saveBtn" style="width:100%;padding:16px">Save customer</button>
+  <p class="msg" id="saveMsg" role="alert"></p>
+  </form>
+</div></div>
+
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { parseAamva } from './js/aamva.js';
+  import { capturePhoto, scanBarcode } from './js/camera.js';
+  import { listCustomers, saveCustomer, ageOn } from './js/customers.js';
+
+  const $ = (id) => document.getElementById(id);
+  const form = $('form'), F = (n) => form.elements[n];
+  let all = [], photos = {};
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const toast = (t) => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); };
+  const say = (el, t, kind = '') => { $(el).textContent = t; $(el).className = 'msg ' + kind; };
+
+  // Auth: staff and above only; otherwise back to the hub.
+  watchAuth(async (user, role) => {
+    if (!user || !role) return location.replace('index.html');
+    refresh();
+  });
+
+  async function refresh() {
+    try { all = await listCustomers(); render(); }
+    catch { $('list').innerHTML = '<p class="empty">Could not load customers. Check your connection.</p>'; }
+  }
+  function render() {
+    const q = $('q').value.trim().toLowerCase(), digits = q.replace(/\D/g, '');
+    const rows = all.filter((c) => !q || `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) || c.lastName.toLowerCase().startsWith(q)
+      || (digits && (c.phone || '').replace(/\D/g, '').includes(digits)) || (digits.length === 4 && c.idLast4 === q.toUpperCase()) || c.idLast4?.toLowerCase() === q);
+    $('list').innerHTML = rows.length ? rows.map((c) => `<div class="row"><div><b>${esc(c.lastName)}, ${esc(c.firstName)}</b>
+      <small>${esc(c.phone || 'No phone')} &middot; ${esc(c.address?.city || '')} ${esc(c.address?.state || '')}</small></div><div class="sp"></div>
+      ${c.flags?.doNotBuy ? '<span class="tag">Do not buy</span>' : ''}<small>Age ${ageOn(c.dob) ?? '?'} &middot; ID …${esc(c.idLast4)}</small></div>`).join('')
+      : `<p class="empty">${all.length ? 'No match.' : 'No customers yet. Add the first one.'}</p>`;
+  }
+  $('q').oninput = render;
+
+  // ----- form -----
+  function openForm() { form.reset(); photos = {}; document.querySelectorAll('.ph img').forEach((i) => i.removeAttribute('src'));
+    $('raw').hidden = true; ['scanMsg', 'saveMsg', 'ageMsg'].forEach((m) => say(m, '')); $('sheet').hidden = false; }
+  $('newBtn').onclick = openForm; $('closeSheet').onclick = () => { $('sheet').hidden = true; };
+
+  function fill(fields) {
+    const map = { firstName: 'firstName', middleName: 'middleName', lastName: 'lastName', dob: 'dob', street: 'street', city: 'city', state: 'state', zip: 'zip', idNumber: 'idNumber', idExpiry: 'idExpiry' };
+    for (const [k, n] of Object.entries(map)) if (fields[k]) F(n).value = fields[k];
+    if (fields.state) F('idState').value = fields.state;
+    checks();
+  }
+  function useBarcode(text) {
+    const r = parseAamva(text);
+    if (!r.ok) return say('scanMsg', 'Could not read that barcode. Scan the one on the BACK of the ID, or type the details in.', 'bad');
+    fill(r.fields); say('scanMsg', 'Filled from the ID. Check every field against the card before saving.', 'good');
+  }
+  $('scanBtn').onclick = async () => {
+    try { useBarcode(await scanBarcode()); }
+    catch (e) { if (e.message !== 'cancelled') say('scanMsg', `${e.message}. You can use a handheld scanner or type the details in.`, 'bad'); }
+  };
+  $('pasteBtn').onclick = () => { $('raw').hidden = false; $('raw').focus(); };
+  let t; $('raw').oninput = () => { clearTimeout(t); t = setTimeout(() => { if ($('raw').value.length > 40) { useBarcode($('raw').value); $('raw').value = ''; } }, 400); };
+
+  document.querySelectorAll('.ph').forEach((box) => box.querySelector('button').onclick = async () => {
+    const k = box.dataset.k;
+    try { photos[k] = await capturePhoto({ title: box.querySelector('button').textContent, facing: k === 'customer' ? 'user' : 'environment' });
+      box.querySelector('img').src = URL.createObjectURL(photos[k]); }
+    catch (e) { if (e.message !== 'cancelled') say('scanMsg', e.message, 'bad'); }
+  });
+
+  function checks() {
+    const age = ageOn(F('dob').value), exp = F('idExpiry').value;
+    const bits = [age != null && age >= 0 ? `Age ${age}` : ''];
+    if (exp && exp < new Date().toISOString().slice(0, 10)) bits.push('This ID is EXPIRED');
+    say('ageMsg', bits.filter(Boolean).join(' · '), bits.length > 1 ? 'warn' : '');
+  }
+  ['dob', 'idExpiry'].forEach((n) => F(n).addEventListener('change', checks));
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(form).entries());
+    for (const k of ['state', 'idState']) v[k] = (v[k] || '').trim().toUpperCase();
+    for (const k of ['firstName', 'lastName', 'idNumber']) v[k] = (v[k] || '').trim();
+    const need = [['firstName', 'first name'], ['lastName', 'last name'], ['dob', 'date of birth'], ['idNumber', 'ID number'], ['idState', 'issuing state'], ['idExpiry', 'ID expiration']];
+    const miss = need.filter(([k]) => !v[k]).map(([, l]) => l);
+    if (miss.length) return say('saveMsg', `Missing: ${miss.join(', ')}.`, 'bad');
+    if (v.idExpiry < new Date().toISOString().slice(0, 10) && !confirm('This ID is expired. Save anyway?')) return;
+    $('saveBtn').disabled = true; say('saveMsg', 'Saving…');
+    try {
+      const r = await saveCustomer(v, photos);
+      if (r.duplicate) return say('saveMsg', `Already on file: ${r.duplicate.lastName}, ${r.duplicate.firstName}. Not saved again.`, 'warn');
+      $('sheet').hidden = true; toast('Customer saved'); refresh();
+    } catch (err) { say('saveMsg', 'Could not save. Photos need a connection; check it and try again.', 'bad'); console.error(err); }
+    finally { $('saveBtn').disabled = false; }
+  };
+
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

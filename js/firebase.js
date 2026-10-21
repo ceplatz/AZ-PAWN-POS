@@ -6,6 +6,8 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
   from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
+import { getStorage } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
+
 export const firebaseConfig = {
   apiKey: 'AIzaSyAcGaf1tZ7_O3GkZafNEJUWnofFmyTGByo',
   authDomain: 'statewide-pawn.firebaseapp.com',
@@ -17,6 +19,7 @@ export const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 // Offline cache so the counter keeps working through an outage (full write outbox comes later).
 export const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 
