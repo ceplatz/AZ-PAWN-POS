@@ -9,10 +9,15 @@ service cloud.firestore {
     function isMgr() { return signedIn() && role() in ['owner', 'manager']; }
     function isStaff() { return signedIn() && role() in ['owner', 'manager', 'staff']; }
 
-    match /customers/{id}   { allow read, create: if isStaff(); allow update: if isMgr(); allow delete: if false; }
+    // Staff may update contact details only; flags (police / do-not-buy) and everything else are owner-only.
+    match /customers/{id}   { allow read, create: if isStaff(); allow delete: if false;
+      allow update: if isOwner() || (isStaff() && request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['phone', 'email', 'address', 'updatedAt', 'updatedBy'])); }
     // Full ID images/numbers are owner-only; keep them in a separate doc.
-    match /customerIds/{id} { allow create: if isStaff(); allow read, update: if isOwner(); allow delete: if false; }
-    match /items/{id}       { allow read, create, update: if isStaff(); allow delete: if false; }
+    // Staff can see the full ID number (owner decision). ID PHOTOS stay owner-only, in storage.rules.
+    match /customerIds/{id} { allow create, read: if isStaff(); allow update: if isOwner(); allow delete: if false; }
+    // Staff can add and view items; only managers/owner change them afterward (price, location, release from hold).
+    match /items/{id}       { allow read, create: if isStaff(); allow update: if isMgr(); allow delete: if false; }
     match /loans/{id}       { allow read, create, update: if isStaff(); allow delete: if false; }
     match /transactions/{id}{ allow read, create: if isStaff(); allow update, delete: if false; } // voids are new records
     // Users may read only their own role; nobody can write roles from the app (console only).

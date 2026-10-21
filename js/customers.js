@@ -1,9 +1,9 @@
 // Customer data layer. Split on purpose:
 //   customers/{id}    - what staff need day to day (name, DOB, address, phone, ID last 4)
 //   customerIds/{id}  - full ID number, expiry and image paths; OWNER-READ-ONLY (see firestore.rules)
-import { collection, doc, getDocs, setDoc, query, orderBy, limit, where, serverTimestamp }
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, orderBy, limit, where, serverTimestamp }
   from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
-import { ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
+import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
 import { db, storage, auth } from './firebase.js';
 
 const norm = (n) => String(n || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -49,3 +49,19 @@ export async function saveCustomer(f, photos = {}) {
   await setDoc(doc(db, 'customerIds', id), { idType: f.idType, idNumber: f.idNumber, idState: f.idState.toUpperCase(), idExpiry: f.idExpiry || '', photos: paths, ...who });
   return { id };
 }
+
+/** Customer plus ID details; ID photo URLs only resolve for the owner (storage rules), others get none. */
+export async function getCustomer(id, { withPhotos = false } = {}) {
+  const [c, i] = await Promise.all([getDoc(doc(db, 'customers', id)), getDoc(doc(db, 'customerIds', id))]);
+  const ids = i.data() || {}, urls = {};
+  if (withPhotos) for (const [k, path] of Object.entries(ids.photos || {})) { try { urls[k] = await getDownloadURL(ref(storage, path)); } catch { /* no access */ } }
+  return { id, ...c.data(), ids, photoUrls: urls };
+}
+/** Contact fields any staff member may change (matches firestore.rules). */
+export async function updateContact(id, f) {
+  await updateDoc(doc(db, 'customers', id), { phone: f.phone || '', email: f.email || '',
+    address: { street: f.street || '', city: f.city || '', state: (f.state || '').toUpperCase(), zip: f.zip || '' },
+    updatedAt: serverTimestamp(), updatedBy: auth.currentUser?.uid || null });
+}
+/** Owner only (rules enforce it). */
+export async function setFlags(id, flags) { await updateDoc(doc(db, 'customers', id), { flags, updatedAt: serverTimestamp(), updatedBy: auth.currentUser?.uid || null }); }

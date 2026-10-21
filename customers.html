@@ -97,15 +97,31 @@
   </form>
 </div></div>
 
+<div class="sheet" id="detail" hidden><div class="sheet-in">
+  <div class="sheet-top"><h2 id="dName"></h2><button class="ghost" id="dClose">Close</button></div>
+  <p id="dTags"></p>
+  <fieldset><legend>Contact</legend><form id="cform"><div class="g">
+    <label><span>Phone</span><input name="phone" type="tel"></label><label><span>Email</span><input name="email" type="email"></label>
+    <label><span>Street</span><input name="street"></label><label><span>City</span><input name="city"></label>
+    <label><span>State</span><input name="state" maxlength="2"></label><label><span>ZIP</span><input name="zip" maxlength="5"></label>
+  </div><div class="actions" style="margin:12px 0 0"><button class="gold" type="submit">Save contact</button></div><p class="msg" id="cMsg"></p></form></fieldset>
+  <fieldset><legend>ID on file</legend><div class="g" id="dId"></div></fieldset>
+  <fieldset id="flagBox" hidden><legend>Owner flags</legend>
+    <label style="display:block;margin-bottom:8px"><input type="checkbox" id="fPolice" style="width:auto"> Police flag</label>
+    <label style="display:block"><input type="checkbox" id="fDnb" style="width:auto"> Do not buy from this customer</label>
+    <div class="actions" style="margin:12px 0 0"><button class="gold" type="button" id="fSave">Save flags</button></div><p class="msg" id="fMsg"></p></fieldset>
+  <fieldset id="photoBox" hidden><legend>ID photos (owner only)</legend><div class="photos" id="dPhotos"></div></fieldset>
+</div></div>
+
 <script type="module">
   import { watchAuth } from './js/firebase.js';
   import { parseAamva } from './js/aamva.js';
   import { capturePhoto, scanBarcode } from './js/camera.js';
-  import { listCustomers, saveCustomer, ageOn } from './js/customers.js';
+  import { listCustomers, saveCustomer, ageOn, getCustomer, updateContact, setFlags } from './js/customers.js';
 
   const $ = (id) => document.getElementById(id);
   const form = $('form'), F = (n) => form.elements[n];
-  let all = [], photos = {};
+  let all = [], photos = {}, myRole = null, cur = null;
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const toast = (t) => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); };
   const say = (el, t, kind = '') => { $(el).textContent = t; $(el).className = 'msg ' + kind; };
@@ -113,7 +129,7 @@
   // Auth: staff and above only; otherwise back to the hub.
   watchAuth(async (user, role) => {
     if (!user || !role) return location.replace('index.html');
-    refresh();
+    myRole = role; refresh();
   });
 
   async function refresh() {
@@ -124,12 +140,43 @@
     const q = $('q').value.trim().toLowerCase(), digits = q.replace(/\D/g, '');
     const rows = all.filter((c) => !q || `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) || c.lastName.toLowerCase().startsWith(q)
       || (digits && (c.phone || '').replace(/\D/g, '').includes(digits)) || (digits.length === 4 && c.idLast4 === q.toUpperCase()) || c.idLast4?.toLowerCase() === q);
-    $('list').innerHTML = rows.length ? rows.map((c) => `<div class="row"><div><b>${esc(c.lastName)}, ${esc(c.firstName)}</b>
+    $('list').innerHTML = rows.length ? rows.map((c) => `<div class="row" data-id="${c.id}" tabindex="0" style="cursor:pointer"><div><b>${esc(c.lastName)}, ${esc(c.firstName)}</b>
       <small>${esc(c.phone || 'No phone')} &middot; ${esc(c.address?.city || '')} ${esc(c.address?.state || '')}</small></div><div class="sp"></div>
       ${c.flags?.doNotBuy ? '<span class="tag">Do not buy</span>' : ''}<small>Age ${ageOn(c.dob) ?? '?'} &middot; ID …${esc(c.idLast4)}</small></div>`).join('')
       : `<p class="empty">${all.length ? 'No match.' : 'No customers yet. Add the first one.'}</p>`;
   }
   $('q').oninput = render;
+
+  // ----- detail -----
+  const open1 = async (id) => {
+    $('detail').hidden = false; $('dName').textContent = 'Loading…'; $('photoBox').hidden = $('flagBox').hidden = true;
+    try { cur = await getCustomer(id, { withPhotos: myRole === 'owner' }); } catch { $('dName').textContent = 'Could not load this customer'; return; }
+    const c = cur, a = c.address || {};
+    $('dName').textContent = `${c.firstName} ${c.middleName || ''} ${c.lastName}`.replace(/\s+/g, ' ');
+    $('dTags').innerHTML = `<span class="tag">Age ${ageOn(c.dob) ?? '?'}</span> <span class="tag">DOB ${esc(c.dob)}</span>` +
+      (c.flags?.police ? ' <span class="tag" style="color:var(--bad)">Police flag</span>' : '') + (c.flags?.doNotBuy ? ' <span class="tag" style="color:var(--bad)">Do not buy</span>' : '');
+    const cf = $('cform').elements; cf.phone.value = c.phone || ''; cf.email.value = c.email || '';
+    cf.street.value = a.street || ''; cf.city.value = a.city || ''; cf.state.value = a.state || ''; cf.zip.value = a.zip || ''; say('cMsg', '');
+    const i = c.ids, expired = i.idExpiry && i.idExpiry < new Date().toISOString().slice(0, 10);
+    $('dId').innerHTML = [['Type', i.idType], ['Number', i.idNumber], ['State', i.idState], ['Expires', (i.idExpiry || '—') + (expired ? '  (EXPIRED)' : '')]]
+      .map(([k, v]) => `<div><span style="display:block;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${k}</span><b>${esc(v || '—')}</b></div>`).join('');
+    if (myRole === 'owner') {
+      $('flagBox').hidden = false; $('fPolice').checked = !!c.flags?.police; $('fDnb').checked = !!c.flags?.doNotBuy; say('fMsg', '');
+      const urls = Object.entries(c.photoUrls);
+      $('photoBox').hidden = false;
+      $('dPhotos').innerHTML = urls.length ? urls.map(([k, u]) => `<div class="ph"><img src="${esc(u)}" alt=""><div class="note">${esc(k)}</div></div>`).join('') : '<p class="note">No photos on file.</p>';
+    }
+  };
+  $('list').onclick = (e) => { const r = e.target.closest('.row'); if (r) open1(r.dataset.id); };
+  $('list').onkeydown = (e) => { if (e.key === 'Enter') { const r = e.target.closest('.row'); if (r) open1(r.dataset.id); } };
+  $('dClose').onclick = () => { $('detail').hidden = true; };
+  $('cform').onsubmit = async (e) => {
+    e.preventDefault(); const v = Object.fromEntries(new FormData(e.target).entries());
+    try { await updateContact(cur.id, v); say('cMsg', 'Saved.', 'good'); refresh(); } catch { say('cMsg', 'Could not save. Check your connection.', 'bad'); }
+  };
+  $('fSave').onclick = async () => {
+    try { await setFlags(cur.id, { police: $('fPolice').checked, doNotBuy: $('fDnb').checked }); await open1(cur.id); say('fMsg', 'Saved.', 'good'); refresh(); } catch { say('fMsg', 'Could not save flags.', 'bad'); }
+  };
 
   // ----- form -----
   function openForm() { form.reset(); photos = {}; document.querySelectorAll('.ph img').forEach((i) => i.removeAttribute('src'));

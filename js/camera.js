@@ -63,3 +63,11 @@ export function scanBarcode({ title = 'Scan the barcode on the BACK of the ID' }
     } catch (e) { done(reject, e); }
   });
 }
+
+/** Downscale an image file picked from the device (fallback when the live camera is unavailable). */
+export async function fileToJpeg(file, maxEdge = 1600) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, maxEdge / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Could not read that image'))), 'image/jpeg', 0.82));
+}

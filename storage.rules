@@ -8,6 +8,13 @@ service firebase.storage {
       allow create: if request.auth != null && role() in ['owner', 'manager', 'staff']
         && request.resource.size < 3 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
     }
+    // Item photos are not sensitive: any staff may view and add them.
+    match /items/{iid}/{file} {
+      allow read: if request.auth != null && role() in ['owner', 'manager', 'staff'];
+      allow create: if request.auth != null && role() in ['owner', 'manager', 'staff']
+        && request.resource.size < 3 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+      allow update, delete: if request.auth != null && role() == 'owner';
+    }
     match /{allPaths=**} { allow read, write: if false; }
   }
 }

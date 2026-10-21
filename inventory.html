@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Inventory · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  .bar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; } .bar input[type=search] { flex:1; min-width:200px; }
+  input, select, textarea { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:13px 14px; font:inherit; width:100%; transition:.15s; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  .bar select { width:auto; }
+  .grid2 { display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); }
+  .card2 { border:1px solid var(--line); border-radius:16px; overflow:hidden; cursor:pointer; background:linear-gradient(160deg,var(--panel-2),var(--panel)); transition:.15s; }
+  .card2:hover, .card2:focus-visible { border-color:var(--accent); transform:translateY(-2px); outline:none; }
+  .thumb { aspect-ratio:4/3; background:#0a121a; display:grid; place-items:center; color:var(--muted); font-size:.8rem; } .thumb img { width:100%; height:100%; object-fit:cover; }
+  .meta { padding:12px 14px 14px; } .meta b { display:block; margin-bottom:2px; } .meta small { color:var(--muted); display:block; }
+  .tag { font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px; }
+  .price { display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+  .empty { color:var(--muted); text-align:center; padding:40px 0; grid-column:1/-1; }
+  .sheet { position:fixed; inset:0; z-index:15; overflow:auto; background:var(--bg); } .sheet-in { max-width:860px; margin:0 auto; padding:18px 20px 60px; }
+  .sheet-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; } .sheet-top h2 { margin:0; flex:1; }
+  fieldset { border:1px solid var(--line); border-radius:16px; padding:18px; margin:0 0 16px; background:var(--panel); }
+  legend { padding:0 8px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+  .g { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+  label span { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+  .photos { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); }
+  .ph { border:1px solid var(--line); border-radius:12px; padding:8px; } .ph img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; }
+  .ph div { display:flex; gap:6px; margin-top:6px; } .ph button { flex:1; padding:6px; font-size:.8rem; }
+  .msg { min-height:1.4em; margin:10px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; } .note { color:var(--muted); font-size:.85rem; }
+  dialog.cam { border:0; background:#000; padding:0; width:min(96vw,900px); border-radius:18px; } .cam-in { padding:14px; } .cam-in h3 { margin:0 0 10px; }
+  .cam video { width:100%; max-height:70vh; background:#000; border-radius:12px; } .cam-msg { color:var(--muted); min-height:1.3em; } .cam-bar { display:flex; justify-content:space-between; gap:10px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--accent); padding:12px 20px; border-radius:12px; z-index:30; }
+</style>
+</head>
+<body>
+<header>
+  <a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a>
+  <div class="wordmark" style="margin-left:6px">Inventory</div><div class="spacer"></div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div>
+</header>
+<main>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Search title, brand, serial, location" autocomplete="off">
+    <select id="fs"><option value="">All statuses</option></select>
+    <button class="gold" id="newBtn">+ Add item</button>
+  </div>
+  <div class="grid2" id="list"><p class="empty">Loading…</p></div>
+</main>
+
+<div class="sheet" id="sheet" hidden><div class="sheet-in">
+  <div class="sheet-top"><h2>Add item</h2><button class="ghost" id="closeSheet">Cancel</button></div>
+  <form id="form" novalidate>
+  <fieldset><legend>Photos</legend><div class="photos" id="photos"></div>
+    <div class="actions"><button type="button" class="gold" id="addPhoto">Take photo</button><button type="button" class="ghost" id="filePhoto">Upload from device</button>
+    <input type="file" id="file" accept="image/*" multiple hidden></div>
+    <p class="note">Take several: front, back, serial number, any damage. The first photo is the cover.</p></fieldset>
+  <fieldset><legend>Item</legend><div class="g">
+    <label><span>Title *</span><input name="title" autocomplete="off"></label>
+    <label><span>Category *</span><select name="category"></select></label>
+    <label><span>Brand / make</span><input name="brand" autocomplete="off"></label>
+    <label><span>Model</span><input name="model" autocomplete="off"></label>
+    <label><span>Serial number <i id="serReq"></i></span><input name="serial" autocomplete="off"></label>
+    <label><span>Condition</span><select name="condition"></select></label>
+    <label><span>Bin / location</span><input name="location" autocomplete="off"></label>
+    <label><span>Source *</span><select name="source"></select></label>
+    <label><span>Cost $ *</span><input name="cost" inputmode="decimal" placeholder="0.00"></label>
+    <label><span>Asking price $</span><input name="ask" inputmode="decimal" placeholder="0.00"></label>
+  </div>
+  <label style="display:block;margin-top:12px"><span>Notes</span><textarea name="notes" rows="2"></textarea></label>
+  <p class="msg warn" id="fireMsg" hidden>Firearm: the A&amp;D book and Form 4473 handling arrive in a later build step. Record the serial number now; do not sell this item through the app yet.</p></fieldset>
+  <button class="gold" type="submit" id="saveBtn" style="width:100%;padding:16px">Save item</button><p class="msg" id="saveMsg" role="alert"></p>
+  </form>
+</div></div>
+
+<div class="sheet" id="detail" hidden><div class="sheet-in">
+  <div class="sheet-top"><h2 id="dTitle"></h2><button class="ghost" id="dClose">Close</button></div>
+  <p id="dTags"></p><div class="photos" id="dPhotos" style="margin-bottom:16px"></div>
+  <fieldset><legend>Details</legend><div class="g" id="dInfo"></div><p class="note" id="dNotes"></p></fieldset>
+  <fieldset id="mgr" hidden><legend>Manager controls</legend><div class="g">
+    <label><span>Status</span><select id="eStatus"></select></label>
+    <label><span>Asking price $</span><input id="eAsk" inputmode="decimal"></label>
+    <label><span>Bin / location</span><input id="eLoc"></label></div>
+    <div class="actions"><button class="gold" id="eSave" type="button">Save changes</button></div><p class="msg" id="eMsg"></p></fieldset>
+</div></div>
+
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { capturePhoto, fileToJpeg } from './js/camera.js';
+  import { CATEGORIES, CONDITIONS, SOURCES, STATUSES, needsSerial, parseMoney, fmtMoney, listItems, getItem, photoUrl, saveItem, updateItem } from './js/items.js';
+
+  const $ = (id) => document.getElementById(id), form = $('form'), F = (n) => form.elements[n];
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const opts = (o) => (Array.isArray(o) ? o.map((v) => [v, v]) : Object.entries(o)).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+  const say = (el, t, k = '') => { $(el).textContent = t; $(el).className = 'msg ' + k; };
+  const toast = (t) => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); };
+  let all = [], blobs = [], role = null, cur = null;
+  F('category').innerHTML = opts(CATEGORIES); F('condition').innerHTML = opts(CONDITIONS); F('source').innerHTML = opts(SOURCES);
+  $('fs').insertAdjacentHTML('beforeend', opts(STATUSES)); $('eStatus').innerHTML = opts(STATUSES);
+
+  watchAuth((user, r) => { if (!user || !r) return location.replace('index.html'); role = r; refresh(); });
+
+  async function refresh() {
+    try { all = await listItems(); render(); } catch { $('list').innerHTML = '<p class="empty">Could not load inventory. Check your connection.</p>'; }
+  }
+  function render() {
+    const q = $('q').value.trim().toLowerCase(), fs = $('fs').value;
+    const rows = all.filter((i) => (!fs || i.status === fs) && (!q || [i.title, i.brand, i.model, i.serial, i.location].join(' ').toLowerCase().includes(q)));
+    $('list').innerHTML = rows.length ? rows.map((i) => `<div class="card2" data-id="${i.id}" tabindex="0"><div class="thumb" data-p="${esc(i.photos?.[0] || '')}">${i.photos?.length ? '' : 'No photo'}</div>
+      <div class="meta"><b>${esc(i.title)}</b><small>${esc(i.category)}${i.serial ? ' · SN ' + esc(i.serial) : ''}</small>
+      <div class="price"><span class="tag">${esc(STATUSES[i.status] || i.status)}</span><span>${fmtMoney(i.askPrice)}</span></div></div></div>`).join('')
+      : `<p class="empty">${all.length ? 'No match.' : 'No items yet. Add the first one.'}</p>`;
+    document.querySelectorAll('.thumb[data-p]').forEach(async (t) => { if (!t.dataset.p) return; try { t.innerHTML = `<img alt="" src="${esc(await photoUrl(t.dataset.p))}">`; } catch { t.textContent = 'Photo unavailable'; } });
+  }
+  $('q').oninput = render; $('fs').onchange = render;
+
+  // ---- add item ----
+  function paintPhotos() {
+    $('photos').innerHTML = blobs.map((b, i) => `<div class="ph"><img alt="" src="${URL.createObjectURL(b)}"><div><button type="button" class="ghost" data-l="${i}" ${i ? '' : 'disabled'}>&larr;</button><button type="button" class="ghost" data-x="${i}">Remove</button></div></div>`).join('');
+  }
+  $('photos').onclick = (e) => {
+    const l = e.target.dataset.l, x = e.target.dataset.x;
+    if (l != null) { const i = +l; [blobs[i - 1], blobs[i]] = [blobs[i], blobs[i - 1]]; }
+    if (x != null) blobs.splice(+x, 1);
+    paintPhotos();
+  };
+  $('addPhoto').onclick = async () => {
+    try { blobs.push(await capturePhoto({ title: `Photo ${blobs.length + 1}` })); paintPhotos(); }
+    catch (e) { if (e.message !== 'cancelled') say('saveMsg', `${e.message}. Try "Upload from device".`, 'bad'); }
+  };
+  $('filePhoto').onclick = () => $('file').click();
+  $('file').onchange = async () => { for (const f of $('file').files) { try { blobs.push(await fileToJpeg(f)); } catch { say('saveMsg', 'Could not read one of those images.', 'bad'); } } $('file').value = ''; paintPhotos(); };
+  const cat = () => { $('serReq').textContent = needsSerial(F('category').value) ? '*' : ''; $('fireMsg').hidden = F('category').value !== 'Firearm'; };
+  F('category').onchange = cat;
+  $('newBtn').onclick = () => { form.reset(); blobs = []; paintPhotos(); cat(); say('saveMsg', ''); $('sheet').hidden = false; };
+  $('closeSheet').onclick = () => { $('sheet').hidden = true; };
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(form).entries()); v.title = v.title.trim();
+    const cost = parseMoney(v.cost), ask = v.ask.trim() ? parseMoney(v.ask) : null;
+    if (!v.title) return say('saveMsg', 'Title is required.', 'bad');
+    if (cost == null) return say('saveMsg', 'Enter the cost, like 25 or 25.50 (use 0 if none).', 'bad');
+    if (ask === null && v.ask.trim()) return say('saveMsg', 'Asking price is not a valid amount.', 'bad');
+    if (needsSerial(v.category) && !v.serial.trim()) return say('saveMsg', 'A serial number is required for this category.', 'bad');
+    $('saveBtn').disabled = true; say('saveMsg', 'Saving…');
+    try { await saveItem({ ...v, costBasis: cost, askPrice: ask }, blobs); $('sheet').hidden = true; toast('Item saved'); refresh(); }
+    catch (err) { say('saveMsg', 'Could not save. Photos need a connection; check it and try again.', 'bad'); console.error(err); }
+    finally { $('saveBtn').disabled = false; }
+  };
+
+  // ---- detail ----
+  $('list').onclick = (e) => { const c = e.target.closest('.card2'); if (c) openDetail(c.dataset.id); };
+  $('list').onkeydown = (e) => { if (e.key === 'Enter') { const c = e.target.closest('.card2'); if (c) openDetail(c.dataset.id); } };
+  $('dClose').onclick = () => { $('detail').hidden = true; };
+  async function openDetail(id) {
+    cur = all.find((i) => i.id === id) || await getItem(id);
+    $('detail').hidden = false; $('dTitle').textContent = cur.title;
+    $('dTags').innerHTML = `<span class="tag">${esc(STATUSES[cur.status] || cur.status)}</span> <span class="tag">${esc(SOURCES[cur.source] || cur.source)}</span>`
+      + (cur.status === 'on-hold' && !cur.holdUntil ? ' <span class="tag" style="color:var(--bad)">Hold period not set (VERIFY)</span>' : '')
+      + (cur.holdUntil ? ` <span class="tag">Hold until ${esc(cur.holdUntil)}</span>` : '');
+    $('dInfo').innerHTML = [['Category', cur.category], ['Brand', cur.brand], ['Model', cur.model], ['Serial', cur.serial], ['Condition', cur.condition],
+      ['Location', cur.location], ['Cost', fmtMoney(cur.costBasis)], ['Asking', fmtMoney(cur.askPrice)], ['Acquired', cur.acquiredDate]]
+      .map(([k, v]) => `<div><span style="display:block;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${k}</span><b>${esc(v || '—')}</b></div>`).join('');
+    $('dNotes').textContent = cur.notes || '';
+    $('dPhotos').innerHTML = (cur.photos || []).map(() => '<div class="ph"><img alt=""></div>').join('');
+    (cur.photos || []).forEach(async (p, i) => { try { $('dPhotos').children[i].querySelector('img').src = await photoUrl(p); } catch { /* skip */ } });
+    const mgr = role === 'owner' || role === 'manager'; $('mgr').hidden = !mgr;
+    if (mgr) { $('eStatus').value = cur.status; $('eAsk').value = cur.askPrice != null ? (cur.askPrice / 100).toFixed(2) : ''; $('eLoc').value = cur.location || ''; say('eMsg', ''); }
+  }
+  $('eSave').onclick = async () => {
+    const ask = $('eAsk').value.trim() ? parseMoney($('eAsk').value) : null;
+    if ($('eAsk').value.trim() && ask === null) return say('eMsg', 'Asking price is not a valid amount.', 'bad');
+    try { await updateItem(cur.id, { status: $('eStatus').value, askPrice: ask, location: $('eLoc').value.trim() }); say('eMsg', 'Saved.', 'good'); refresh(); }
+    catch { say('eMsg', 'Could not save. Check your connection.', 'bad'); }
+  };
+
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>
