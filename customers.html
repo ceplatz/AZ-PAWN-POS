@@ -116,6 +116,7 @@
 <script type="module">
   import { watchAuth } from './js/firebase.js';
   import { parseAamva } from './js/aamva.js';
+  import { todayET } from './js/dates.js';
   import { capturePhoto, scanBarcode } from './js/camera.js';
   import { listCustomers, saveCustomer, ageOn, getCustomer, updateContact, setFlags } from './js/customers.js';
 
@@ -157,7 +158,7 @@
       (c.flags?.police ? ' <span class="tag" style="color:var(--bad)">Police flag</span>' : '') + (c.flags?.doNotBuy ? ' <span class="tag" style="color:var(--bad)">Do not buy</span>' : '');
     const cf = $('cform').elements; cf.phone.value = c.phone || ''; cf.email.value = c.email || '';
     cf.street.value = a.street || ''; cf.city.value = a.city || ''; cf.state.value = a.state || ''; cf.zip.value = a.zip || ''; say('cMsg', '');
-    const i = c.ids, expired = i.idExpiry && i.idExpiry < new Date().toISOString().slice(0, 10);
+    const i = c.ids, expired = i.idExpiry && i.idExpiry < todayET();
     $('dId').innerHTML = [['Type', i.idType], ['Number', i.idNumber], ['State', i.idState], ['Expires', (i.idExpiry || '—') + (expired ? '  (EXPIRED)' : '')]]
       .map(([k, v]) => `<div><span style="display:block;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${k}</span><b>${esc(v || '—')}</b></div>`).join('');
     if (myRole === 'owner') {
@@ -211,7 +212,7 @@
   function checks() {
     const age = ageOn(F('dob').value), exp = F('idExpiry').value;
     const bits = [age != null && age >= 0 ? `Age ${age}` : ''];
-    if (exp && exp < new Date().toISOString().slice(0, 10)) bits.push('This ID is EXPIRED');
+    if (exp && exp < todayET()) bits.push('This ID is EXPIRED');
     say('ageMsg', bits.filter(Boolean).join(' · '), bits.length > 1 ? 'warn' : '');
   }
   ['dob', 'idExpiry'].forEach((n) => F(n).addEventListener('change', checks));
@@ -224,7 +225,7 @@
     const need = [['firstName', 'first name'], ['lastName', 'last name'], ['dob', 'date of birth'], ['idNumber', 'ID number'], ['idState', 'issuing state'], ['idExpiry', 'ID expiration']];
     const miss = need.filter(([k]) => !v[k]).map(([, l]) => l);
     if (miss.length) return say('saveMsg', `Missing: ${miss.join(', ')}.`, 'bad');
-    if (v.idExpiry < new Date().toISOString().slice(0, 10) && !confirm('This ID is expired. Save anyway?')) return;
+    if (v.idExpiry < todayET() && !confirm('This ID is expired. Save anyway?')) return;
     $('saveBtn').disabled = true; say('saveMsg', 'Saving…');
     try {
       const r = await saveCustomer(v, photos);

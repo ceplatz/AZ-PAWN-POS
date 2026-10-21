@@ -1,5 +1,6 @@
 // Pure item rules (no Firebase) so they are unit tested. Money is integer cents.
 import { CONFIG } from './config.js';
+import { todayET } from './dates.js';
 
 export const CATEGORIES = ['Firearm', 'Jewelry', 'Electronics', 'Tools', 'Musical', 'Outdoor / Sporting', 'Collectibles', 'Other'];
 export const CONDITIONS = ['New', 'Like new', 'Good', 'Fair', 'Poor'];
@@ -21,7 +22,7 @@ export const fmtMoney = (c) => (c == null ? '—' : (c / 100).toLocaleString('en
  * until the resale hold is cleared; while the legal hold length is unverified (null) it stays on hold
  * for the owner to release manually. Never guess a hold period.
  */
-export function initialStatus(source, today = new Date().toISOString().slice(0, 10), days = CONFIG.compliance.resaleHoldDays) {
+export function initialStatus(source, today = todayET(), days = CONFIG.compliance.resaleHoldDays) {
   if (source === 'pawn-collateral') return { status: 'collateral-active', holdUntil: null };
   if (days == null) return { status: 'on-hold', holdUntil: null };
   if (days === 0) return { status: 'for-sale', holdUntil: null };

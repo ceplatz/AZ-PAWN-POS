@@ -97,7 +97,7 @@
   const say = (el, t, k = '') => { $(el).textContent = t; $(el).className = 'msg ' + k; };
   const toast = (t) => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); };
   let all = [], blobs = [], role = null, cur = null;
-  F('category').innerHTML = opts(CATEGORIES); F('condition').innerHTML = opts(CONDITIONS); F('source').innerHTML = opts(SOURCES);
+  F('category').innerHTML = '<option value="">Select category…</option>' + opts(CATEGORIES); F('condition').innerHTML = opts(CONDITIONS); F('source').innerHTML = opts(SOURCES);
   $('fs').insertAdjacentHTML('beforeend', opts(STATUSES)); $('eStatus').innerHTML = opts(STATUSES);
 
   watchAuth((user, r) => { if (!user || !r) return location.replace('index.html'); role = r; refresh(); });
@@ -142,6 +142,7 @@
     const v = Object.fromEntries(new FormData(form).entries()); v.title = v.title.trim();
     const cost = parseMoney(v.cost), ask = v.ask.trim() ? parseMoney(v.ask) : null;
     if (!v.title) return say('saveMsg', 'Title is required.', 'bad');
+    if (!v.category) return say('saveMsg', 'Choose a category.', 'bad');
     if (cost == null) return say('saveMsg', 'Enter the cost, like 25 or 25.50 (use 0 if none).', 'bad');
     if (ask === null && v.ask.trim()) return say('saveMsg', 'Asking price is not a valid amount.', 'bad');
     if (needsSerial(v.category) && !v.serial.trim()) return say('saveMsg', 'A serial number is required for this category.', 'bad');

@@ -22,11 +22,7 @@ export async function findByIdHash(h) {
   return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
 }
 
-export const ageOn = (dob, today = new Date().toISOString().slice(0, 10)) => {
-  if (!dob) return null;
-  const [y, m, d] = dob.split('-').map(Number), [ty, tm, td] = today.split('-').map(Number);
-  return ty - y - (tm < m || (tm === m && td < d) ? 1 : 0);
-};
+export { ageOn } from './seller-check.js';
 
 /** photos: { front, back, customer } Blobs (all optional). Photo uploads need a connection and must succeed first. */
 export async function saveCustomer(f, photos = {}) {

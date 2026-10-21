@@ -3,6 +3,7 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, orderBy, li
   from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
 import { db, storage, auth } from './firebase.js';
+import { todayET } from './dates.js';
 
 export * from './item-logic.js';
 import { initialStatus } from './item-logic.js';
@@ -25,12 +26,12 @@ export async function uploadItemPhotos(id, blobs = []) {
 }
 /** The Firestore document for a new item. f.loanId links collateral to its loan. */
 export function itemData(f, paths = []) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayET();
   return {
     title: f.title, category: f.category, brand: f.brand || '', model: f.model || '', condition: f.condition,
     serial: (f.serial || '').trim(), notes: f.notes || '', location: f.location || '',
     source: f.source, costBasis: f.costBasis ?? null, askPrice: f.askPrice ?? null, estValue: f.estValue ?? null, photos: paths,
-    loanId: f.loanId || null, acquiredDate: today, isFirearm: f.category === 'Firearm', ...initialStatus(f.source, today),
+    loanId: f.loanId || null, purchaseId: f.purchaseId || null, acquiredDate: today, isFirearm: f.category === 'Firearm', ...initialStatus(f.source, today),
     createdBy: auth.currentUser?.uid || null, createdByEmail: auth.currentUser?.email || null, createdAt: serverTimestamp(),
   };
 }

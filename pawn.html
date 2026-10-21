@@ -80,7 +80,8 @@
 <script type="module">
   import { watchAuth, auth } from './js/firebase.js';
   import { photoPicker } from './js/photo-picker.js';
-  import { listCustomers, getCustomer, ageOn } from './js/customers.js';
+  import { listCustomers, getCustomer } from './js/customers.js';
+  import { checkSeller, ageOn } from './js/seller-check.js';
   import { CATEGORIES, CONDITIONS, needsSerial, parseMoney, fmtMoney } from './js/item-logic.js';
   import { createLoan } from './js/loans.js';
   import { previewTerms, todayET } from './js/loans-logic.js';
@@ -92,8 +93,8 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const opts = (a) => a.map((v) => `<option>${esc(v)}</option>`).join('');
   const say = (el, t, k = '') => { $(el).textContent = t; $(el).className = 'msg ' + k; };
-  F('category').innerHTML = opts(CATEGORIES); F('condition').innerHTML = opts(CONDITIONS);
-  let people = [], cust = null, items = [];
+  F('category').innerHTML = '<option value="">Select category…</option>' + opts(CATEGORIES); F('condition').innerHTML = opts(CONDITIONS);
+  let people = [], cust = null, items = [], check = null;
   const picker = photoPicker({ grid: $('photos'), addBtn: $('addPhoto'), fileBtn: $('filePhoto'), fileInput: $('file'), onError: (m) => say('itemMsg', m, 'bad') });
 
   watchAuth(async (user, role) => {
@@ -114,12 +115,9 @@
     $('finder').hidden = true; $('picked').hidden = false;
     $('picked').innerHTML = `<div class="box"><b>${esc(cust.firstName)} ${esc(cust.lastName)}</b> <span class="tag">Age ${ageOn(cust.dob) ?? '?'}</span><br><small>${esc(cust.phone || 'no phone')} · ${esc(cust.address?.city || '')} · ${esc(cust.ids.idType || '')} ${esc(cust.ids.idNumber || '')}</small>
       <div class="actions"><button class="ghost" id="chg" type="button">Change customer</button></div></div>`;
-    $('chg').onclick = () => { cust = null; $('finder').hidden = false; $('picked').hidden = true; say('custMsg', ''); };
-    const expired = cust.ids.idExpiry && cust.ids.idExpiry < todayET();
-    if (cust.flags?.doNotBuy) say('custMsg', 'DO NOT BUY flag on this customer. Do not make a loan; see the owner.', 'bad');
-    else if (cust.flags?.police) say('custMsg', 'Police flag on this customer. Notify the owner before continuing.', 'warn');
-    else if (expired) say('custMsg', 'This customer\'s ID is EXPIRED. Get a current ID before issuing a loan.', 'warn');
-    else say('custMsg', '');
+    $('chg').onclick = () => { cust = null; check = null; $('finder').hidden = false; $('picked').hidden = true; say('custMsg', ''); };
+    check = checkSeller(cust, cust.ids, { today: todayET(), minAge: CONFIG.compliance.minSellerAge });
+    say('custMsg', check.block || check.warnings.join(' '), check.block ? 'bad' : 'warn');
   };
 
   // ---- 2. collateral ----
@@ -134,6 +132,7 @@
     e.preventDefault(); const v = Object.fromEntries(new FormData(iform).entries()); v.title = v.title.trim();
     const est = v.est.trim() ? parseMoney(v.est) : null;
     if (!v.title) return say('itemMsg', 'Title is required.', 'bad');
+    if (!v.category) return say('itemMsg', 'Choose a category.', 'bad');
     if (v.est.trim() && est === null) return say('itemMsg', 'Estimated value is not a valid amount.', 'bad');
     if (needsSerial(v.category) && !v.serial.trim()) return say('itemMsg', 'A serial number is required for this category.', 'bad');
     items.push({ f: { ...v, estValue: est }, blobs: [...picker.blobs] });
@@ -157,10 +156,10 @@
   $('issue').onclick = async () => {
     const principal = terms();
     if (!cust) return say('issueMsg', 'Choose a customer first.', 'bad');
-    if (cust.flags?.doNotBuy) return say('issueMsg', 'This customer is flagged Do Not Buy.', 'bad');
+    if (check.block) return say('issueMsg', check.block, 'bad');
     if (!items.length) return say('issueMsg', 'Add at least one collateral item.', 'bad');
     if (!principal) return say('issueMsg', 'Enter the loan amount, like 100 or 100.50.', 'bad');
-    if (cust.ids.idExpiry && cust.ids.idExpiry < todayET() && !confirm('This customer\'s ID is expired. Continue anyway?')) return;
+    if (check.expired && !confirm('This customer\'s ID is expired. Continue anyway?')) return;
     if (!confirm(`Issue a ${fmtMoney(principal)} loan to ${cust.firstName} ${cust.lastName} for ${items.length} item(s)?`)) return;
     $('issue').disabled = true; say('issueMsg', 'Issuing…');
     try {

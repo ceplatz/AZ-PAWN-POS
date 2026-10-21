@@ -2,8 +2,7 @@
 import { CONFIG } from './config.js';
 import { payoff, accruedInterest, maturityDate, forfeitureDate, statusAsOf } from './loan-engine.js';
 
-/** Today's date in the shop's timezone (Eastern), not the device's. */
-export const todayET = (now = new Date()) => now.toLocaleDateString('en-CA', { timeZone: CONFIG.shop.timezone });
+export { todayET } from './dates.js';
 
 /** Snapshot the loan rules onto each loan at issue time so later config changes never alter an existing loan. */
 export const termsFromConfig = (c = CONFIG.loan) => ({ monthlyRate: c.monthlyRate, termMonths: c.termMonths, accrualMode: c.accrualMode,

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Buy · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style id="tcss"></style>
+<style>
+  input, select, textarea { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:13px 14px; font:inherit; width:100%; transition:.15s; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  main { max-width:860px; } fieldset { border:1px solid var(--line); border-radius:16px; padding:18px; margin:0; background:var(--panel); }
+  legend { padding:0 8px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+  .g { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+  label span { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+  .res { display:grid; gap:8px; margin-top:10px; max-height:240px; overflow:auto; }
+  .row { display:flex; align-items:center; gap:12px; padding:12px 16px; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); cursor:pointer; flex-wrap:wrap; } .row:hover { border-color:var(--accent); }
+  .row .sp { flex:1; } small, .note { color:var(--muted); font-size:.85rem; } .tag { font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px; }
+  .photos { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); margin-bottom:10px; }
+  .ph { border:1px solid var(--line); border-radius:12px; padding:6px; } .ph img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; }
+  .ph div { display:flex; gap:6px; margin-top:6px; } .ph button { flex:1; padding:5px; font-size:.8rem; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .msg { min-height:1.4em; margin:10px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); }
+  .box { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--panel-2); } .total { font-size:1.6rem; font-weight:800; color:var(--accent); }
+  #done .ticket { margin:14px auto; } [hidden] { display:none !important; }
+  dialog.cam { border:0; background:#000; padding:0; width:min(96vw,900px); border-radius:18px; } .cam-in { padding:14px; } .cam-in h3 { margin:0 0 10px; }
+  .cam video { width:100%; max-height:70vh; background:#000; border-radius:12px; } .cam-msg { color:var(--muted); min-height:1.3em; } .cam-bar { display:flex; justify-content:space-between; gap:10px; }
+  .btn { text-decoration:none; padding:12px 16px; border:1px solid var(--line); border-radius:10px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a>
+  <div class="wordmark" style="margin-left:6px">Buy</div><div class="spacer"></div>
+  <button class="ghost" id="recentBtn">Recent purchases</button>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div>
+</header>
+<main id="flow">
+  <div id="recent" hidden><fieldset><legend>Recent purchases (tap to reprint)</legend><div class="res" id="recentList" style="max-height:none"></div></fieldset></div>
+
+  <fieldset><legend>1. Seller</legend>
+    <div id="picked" hidden></div>
+    <div id="finder"><input id="q" type="search" placeholder="Search name, phone, or last 4 of ID" autocomplete="off"><div class="res" id="res"></div>
+      <div class="actions"><a class="ghost btn" href="customers.html">+ New customer (opens Customers)</a></div></div>
+    <p class="msg" id="custMsg"></p></fieldset>
+
+  <fieldset><legend>2. Items being bought</legend>
+    <div id="itemList" class="res" style="max-height:none"></div>
+    <details id="addBox" open style="margin-top:10px"><summary style="cursor:pointer;color:var(--accent)">Add an item</summary>
+      <div class="photos" id="photos" style="margin-top:12px"></div>
+      <div class="actions" style="margin:0 0 12px"><button type="button" class="gold" id="addPhoto">Take photo</button><button type="button" class="ghost" id="filePhoto">Upload from device</button><input type="file" id="file" accept="image/*" multiple hidden></div>
+      <form id="iform" novalidate><div class="g">
+        <label><span>Title *</span><input name="title" autocomplete="off"></label>
+        <label><span>Category *</span><select name="category"></select></label>
+        <label><span>Brand</span><input name="brand" autocomplete="off"></label>
+        <label><span>Model</span><input name="model" autocomplete="off"></label>
+        <label><span>Serial # <i id="serReq"></i></span><input name="serial" autocomplete="off"></label>
+        <label><span>Condition</span><select name="condition"></select></label>
+        <label><span>Price paid $ *</span><input name="price" inputmode="decimal" placeholder="0.00"></label>
+        <label><span>Asking price $</span><input name="ask" inputmode="decimal" placeholder="0.00"></label>
+        <label><span>Bin / location</span><input name="location" autocomplete="off"></label>
+      </div><label style="display:block;margin-top:12px"><span>Notes</span><textarea name="notes" rows="2"></textarea></label>
+      <p class="msg warn" id="fireMsg" hidden>Firearm: the A&amp;D book and Form 4473 handling arrive in a later build step. Record this purchase in your existing bound book until then.</p>
+      <div class="actions"><button class="gold" type="submit">Add to purchase</button></div><p class="msg" id="itemMsg"></p></form>
+    </details></fieldset>
+
+  <fieldset><legend>3. Payment</legend><div class="g">
+    <div><span style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Total to pay seller</span><div class="total" id="total">$0.00</div></div>
+    <label><span>Paid by</span><select id="method"><option value="cash">Cash</option><option value="card">Card / check</option></select></label></div>
+    <p class="note" id="holdNote"></p></fieldset>
+
+  <button class="gold" id="issue" style="padding:16px">Complete purchase and print receipt</button><p class="msg" id="issueMsg" role="alert"></p>
+</main>
+
+<section id="done" hidden style="max-width:860px;margin:0 auto;padding:20px">
+  <p class="msg good" id="doneMsg" style="font-size:1.1rem"></p>
+  <div class="actions"><button class="gold" id="printBtn">Print receipt</button><a class="ghost btn" href="buy.html">New purchase</a><a class="ghost btn" href="inventory.html">Inventory</a></div>
+  <div id="preview"></div>
+</section>
+<div id="printArea"></div>
+
+<script type="module">
+  import { watchAuth, auth } from './js/firebase.js';
+  import { photoPicker } from './js/photo-picker.js';
+  import { listCustomers, getCustomer } from './js/customers.js';
+  import { CATEGORIES, CONDITIONS, needsSerial, fmtMoney } from './js/item-logic.js';
+  import { validateLine, totalPaid, hasFirearm } from './js/buy-logic.js';
+  import { checkSeller, ageOn } from './js/seller-check.js';
+  import { createPurchase, listPurchases } from './js/buys.js';
+  import { initialStatus } from './js/items.js';
+  import { todayET } from './js/loans-logic.js';
+  import { buyReceiptHtml } from './js/receipt.js';
+  import { TICKET_CSS } from './js/ticket.js';
+  import { CONFIG } from './js/config.js';
+
+  const $ = (id) => document.getElementById(id), iform = $('iform'), F = (n) => iform.elements[n];
+  $('tcss').textContent = TICKET_CSS;
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const opts = (a) => a.map((v) => `<option>${esc(v)}</option>`).join('');
+  const say = (el, t, k = '') => { $(el).textContent = t; $(el).className = 'msg ' + k; };
+  F('category').innerHTML = '<option value="">Select category…</option>' + opts(CATEGORIES); F('condition').innerHTML = opts(CONDITIONS);
+  let people = [], cust = null, lines = [], check = null;
+  const picker = photoPicker({ grid: $('photos'), addBtn: $('addPhoto'), fileBtn: $('filePhoto'), fileInput: $('file'), onError: (m) => say('itemMsg', m, 'bad') });
+
+  watchAuth(async (user, role) => {
+    if (!user || !role) return location.replace('index.html');
+    paintHold();
+    try { people = await listCustomers(); } catch { say('custMsg', 'Could not load customers. Check your connection.', 'bad'); }
+  });
+
+  // ---- 1. seller ----
+  $('q').oninput = () => {
+    const q = $('q').value.trim().toLowerCase(), d = q.replace(/\D/g, '');
+    const rows = q ? people.filter((c) => `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) || c.lastName.toLowerCase().startsWith(q) || (d && (c.phone || '').replace(/\D/g, '').includes(d)) || c.idLast4?.toLowerCase() === q).slice(0, 12) : [];
+    $('res').innerHTML = rows.map((c) => `<div class="row" data-id="${c.id}"><b>${esc(c.lastName)}, ${esc(c.firstName)}</b><span class="sp"></span><small>${esc(c.phone || '')} · ID …${esc(c.idLast4)}</small></div>`).join('') || (q ? '<p class="note">No match. Add them under Customers first.</p>' : '');
+  };
+  $('res').onclick = async (e) => {
+    const r = e.target.closest('.row'); if (!r) return;
+    try { cust = await getCustomer(r.dataset.id); } catch { return say('custMsg', 'Could not load that customer.', 'bad'); }
+    $('finder').hidden = true; $('picked').hidden = false;
+    $('picked').innerHTML = `<div class="box"><b>${esc(cust.firstName)} ${esc(cust.lastName)}</b> <span class="tag">Age ${ageOn(cust.dob) ?? '?'}</span><br><small>${esc(cust.phone || 'no phone')} · ${esc(cust.address?.city || '')} · ${esc(cust.ids.idType || '')} ${esc(cust.ids.idNumber || '')}</small>
+      <div class="actions"><button class="ghost" id="chg" type="button">Change customer</button></div></div>`;
+    $('chg').onclick = () => { cust = null; check = null; $('finder').hidden = false; $('picked').hidden = true; say('custMsg', ''); };
+    check = checkSeller(cust, cust.ids, { today: todayET(), minAge: CONFIG.compliance.minSellerAge });
+    say('custMsg', check.block || check.warnings.join(' '), check.block ? 'bad' : 'warn');
+  };
+
+  // ---- 2. items ----
+  const cat = () => { $('serReq').textContent = needsSerial(F('category').value) ? '*' : ''; $('fireMsg').hidden = F('category').value !== 'Firearm'; };
+  F('category').onchange = cat; cat();
+  function paintHold() {
+    const h = initialStatus('bought', todayET(), CONFIG.compliance.resaleHoldDays);
+    $('holdNote').textContent = h.holdUntil ? `Items will be held for resale until ${h.holdUntil}.` : h.status === 'for-sale' ? 'No resale hold is set.'
+      : 'Resale hold period is not set in Settings (VERIFY): items will be marked On hold until a manager releases them.';
+  }
+  function paintItems() {
+    $('itemList').innerHTML = lines.map((l, i) => `<div class="row" style="cursor:default"><b>${esc(l.f.title)}</b><span class="sp"></span><small>${esc(l.f.category)}${l.f.serial ? ' · SN ' + esc(l.f.serial) : ''} · ${l.blobs.length} photo${l.blobs.length === 1 ? '' : 's'}</small><b>${fmtMoney(l.f.costBasis)}</b><button class="ghost" data-rm="${i}" type="button">Remove</button></div>`).join('');
+    $('total').textContent = fmtMoney(totalPaid(lines)); $('addBox').open = lines.length === 0;
+  }
+  $('itemList').onclick = (e) => { if (e.target.dataset.rm != null) { lines.splice(+e.target.dataset.rm, 1); paintItems(); } };
+  iform.onsubmit = (e) => {
+    e.preventDefault(); const r = validateLine(Object.fromEntries(new FormData(iform).entries()));
+    if (r.error) return say('itemMsg', r.error, 'bad');
+    lines.push({ f: r.line, blobs: [...picker.blobs] }); iform.reset(); picker.clear(); cat(); say('itemMsg', ''); paintItems();
+  };
+
+  // ---- complete ----
+  $('issue').onclick = async () => {
+    if (!cust) return say('issueMsg', 'Choose the seller first.', 'bad');
+    if (check.block) return say('issueMsg', check.block, 'bad');
+    if (!lines.length) return say('issueMsg', 'Add at least one item.', 'bad');
+    const total = totalPaid(lines);
+    if (check.expired && !confirm('The seller\'s ID is expired. Continue anyway?')) return;
+    if (hasFirearm(lines) && !confirm('This purchase includes a firearm. The A&D book entry is NOT done by this app yet: record it in your bound book. Continue?')) return;
+    if (!confirm(`Pay ${cust.firstName} ${cust.lastName} ${fmtMoney(total)} for ${lines.length} item(s)?`)) return;
+    $('issue').disabled = true; say('issueMsg', 'Saving…');
+    try {
+      const p = await createPurchase({ customer: cust, lines, method: $('method').value });
+      const html = buyReceiptHtml({ purchase: p, customer: cust, ids: cust.ids });
+      $('preview').innerHTML = html; $('printArea').innerHTML = html;
+      $('doneMsg').textContent = `Purchase recorded. Receipt #${p.receiptNumber}: pay ${fmtMoney(total)}.`;
+      $('flow').hidden = true; $('done').hidden = false; $('printBtn').onclick = () => print();
+    } catch (err) { say('issueMsg', 'Could not save the purchase. Photos and receipt numbers need a connection; check it and try again. Nothing was recorded.', 'bad'); console.error(err); }
+    finally { $('issue').disabled = false; }
+  };
+
+  // ---- recent purchases / reprint ----
+  $('recentBtn').onclick = async () => {
+    $('recent').hidden = !$('recent').hidden; if ($('recent').hidden) return;
+    try {
+      const rows = await listPurchases();
+      $('recentList').innerHTML = rows.map((p) => `<div class="row" data-id="${p.id}"><b>#${p.receiptNumber} · ${esc(p.customerName)}</b><span class="sp"></span><small>${esc(p.date)} · ${p.itemSummaries.length} item(s)</small><b>${fmtMoney(p.total)}</b></div>`).join('') || '<p class="note">No purchases yet.</p>';
+      $('recentList').onclick = async (e) => {
+        const r = e.target.closest('.row'); if (!r) return; const p = rows.find((x) => x.id === r.dataset.id);
+        try { const c = await getCustomer(p.customerId); $('printArea').innerHTML = buyReceiptHtml({ purchase: p, customer: c, ids: c.ids }); print(); } catch { say('issueMsg', 'Could not load the customer to print the receipt.', 'bad'); }
+      };
+    } catch { $('recentList').innerHTML = '<p class="note">Could not load purchases. Check your connection.</p>'; }
+  };
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline (purchases need a connection)'; $('dot').classList.toggle('off', !on); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

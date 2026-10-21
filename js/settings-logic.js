@@ -22,20 +22,22 @@ export function validateSettings(i) {
   if (renewals === null || renewals > 50) bad('Renewals allowed must be blank (no limit) or a whole number up to 50.');
   const hold = blankOrInt(i.resaleHoldDays);
   if (hold === null || hold > 365) bad('Resale hold days must be blank (not set) or a whole number up to 365.');
+  const minAge = blankOrInt(i.minSellerAge);
+  if (minAge === null || minAge > 99) bad('Minimum seller age must be blank (not enforced) or a whole number up to 99.');
   const taxPct = t('taxPct') === '' ? undefined : num(i.taxPct);
   if (taxPct === null || taxPct > 20) bad('Sales tax must be blank or a percent up to 20.');
   if (!t('name')) bad('Shop name is required.');
   if (t('state') && !/^[A-Za-z]{2}$/.test(t('state'))) bad('State must be 2 letters.');
 
   const ticketOk = !!(i.verifyTicket);
-  if (ticketOk && (!t('pawnLicense') || !t('street') || !t('disclosureText'))) bad('Ticket cannot be marked verified until the license number, shop address and disclosure text are filled in.');
+  if (ticketOk && (!t('pawnLicense') || !t('street') || !t('disclosureText') || !t('receiptStatement'))) bad('Tickets and receipts cannot be marked verified until the license number, shop address, ticket disclosure text and receipt statement are filled in.');
 
   const value = {
     shop: { name: t('name'), street: t('street'), city: t('city'), state: t('state').toUpperCase(), zip: t('zip'), phone: t('phone'), pawnLicense: t('pawnLicense'), fflNumber: t('fflNumber') },
     taxRate: taxPct === undefined ? null : Math.round(taxPct * 1e4) / 1e6,
     loan: { monthlyRate: Math.round((ratePct ?? 0) * 1e4) / 1e6, termMonths, accrualMode: i.accrualMode, graceDays, renewalsAllowed: renewals === undefined ? null : renewals, forfeitureCostBasis: 'principal' },
-    ticket: { disclosureText: String(i.disclosureText ?? '').trim() },
-    compliance: { resaleHoldDays: hold === undefined ? null : hold, policeVendor: t('policeVendor') },
+    ticket: { disclosureText: String(i.disclosureText ?? '').trim(), receiptStatement: String(i.receiptStatement ?? '').trim() },
+    compliance: { minSellerAge: minAge === undefined ? null : minAge, resaleHoldDays: hold === undefined ? null : hold, policeVendor: t('policeVendor') },
     verified: { loan: !!i.verifyLoan, ticket: ticketOk },
   };
   return { ok: errors.length === 0, errors, value };
@@ -52,11 +54,13 @@ export function applySettings(CONFIG, s) {
   if (s.taxRate !== undefined) CONFIG.shop.taxRate = s.taxRate;
   Object.assign(CONFIG.loan, s.loan || {});
   CONFIG.ticket.disclosureText = s.ticket?.disclosureText || '';
+  CONFIG.ticket.receiptStatement = s.ticket?.receiptStatement || '';
+  CONFIG.compliance.minSellerAge = s.compliance?.minSellerAge ?? null;
   CONFIG.compliance.resaleHoldDays = s.compliance?.resaleHoldDays ?? null;
   CONFIG.compliance.policeReporting.vendor = s.compliance?.policeVendor || null;
   CONFIG.compliance.loanTermsVerified = !!s.verified?.loan;
   // The ticket only counts as verified if the owner ticked it AND the required content is actually present.
-  CONFIG.compliance.verified = !!(s.verified?.ticket && sh.pawnLicense && sh.street && CONFIG.ticket.disclosureText);
+  CONFIG.compliance.verified = !!(s.verified?.ticket && sh.pawnLicense && sh.street && CONFIG.ticket.disclosureText && CONFIG.ticket.receiptStatement);
   return CONFIG;
 }
 
@@ -66,7 +70,8 @@ export function toForm(s, CONFIG) {
   return { name: sh.name ?? CONFIG.shop.name, street: sh.street ?? '', city: sh.city ?? '', state: sh.state ?? '', zip: sh.zip ?? '', phone: sh.phone ?? '',
     pawnLicense: sh.pawnLicense ?? '', fflNumber: sh.fflNumber ?? '', taxPct: s?.taxRate != null ? String(+(s.taxRate * 100).toFixed(4)) : '',
     ratePct: String(+(l.monthlyRate * 100).toFixed(4)), termMonths: String(l.termMonths), accrualMode: l.accrualMode, graceDays: String(l.graceDays),
-    renewalsAllowed: l.renewalsAllowed == null ? '' : String(l.renewalsAllowed), disclosureText: s?.ticket?.disclosureText ?? '',
+    renewalsAllowed: l.renewalsAllowed == null ? '' : String(l.renewalsAllowed), disclosureText: s?.ticket?.disclosureText ?? '', receiptStatement: s?.ticket?.receiptStatement ?? '',
+    minSellerAge: s?.compliance?.minSellerAge == null ? '' : String(s.compliance.minSellerAge),
     resaleHoldDays: s?.compliance?.resaleHoldDays == null ? '' : String(s.compliance.resaleHoldDays), policeVendor: s?.compliance?.policeVendor ?? '',
     verifyLoan: !!s?.verified?.loan, verifyTicket: !!s?.verified?.ticket };
 }

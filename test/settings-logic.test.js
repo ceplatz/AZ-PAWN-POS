@@ -5,7 +5,7 @@ import { CONFIG as base } from '../js/config.js';
 import { payoff } from '../js/loan-engine.js';
 
 const good = { name: 'AZ Pawn of Salem', street: '1 Main St', city: 'Salem', state: 'ct', zip: '06420', phone: '', pawnLicense: 'P-1', fflNumber: '',
-  taxPct: '6.35', ratePct: '25', termMonths: '2', accrualMode: 'per-completed-month', graceDays: '0', renewalsAllowed: '', disclosureText: 'Terms...',
+  taxPct: '6.35', ratePct: '25', termMonths: '2', accrualMode: 'per-completed-month', graceDays: '0', renewalsAllowed: '', disclosureText: 'Terms...', receiptStatement: 'I own this.', minSellerAge: '',
   resaleHoldDays: '', policeVendor: '', verifyLoan: false, verifyTicket: false };
 const fresh = () => structuredClone(base);
 
@@ -17,19 +17,19 @@ test('valid input becomes typed values (percent -> fraction, blanks -> null)', (
 });
 test('rejects nonsense instead of guessing', () => {
   for (const [k, v] of [['ratePct', '0'], ['ratePct', '250'], ['ratePct', 'abc'], ['termMonths', '0'], ['termMonths', '2.5'], ['graceDays', '-1'], ['accrualMode', 'x'],
-    ['renewalsAllowed', 'two'], ['resaleHoldDays', '9999'], ['taxPct', '50'], ['name', ' '], ['state', 'Conn']]) {
+    ['renewalsAllowed', 'two'], ['resaleHoldDays', '9999'], ['minSellerAge', '150'], ['minSellerAge', 'x'], ['taxPct', '50'], ['name', ' '], ['state', 'Conn']]) {
     assert.equal(validateSettings({ ...good, [k]: v }).ok, false, `${k}=${v}`);
   }
 });
 test('ticket cannot be marked verified with missing license, address, or disclosure', () => {
   assert.equal(validateSettings({ ...good, verifyTicket: true }).ok, true);
-  for (const k of ['pawnLicense', 'street', 'disclosureText']) assert.equal(validateSettings({ ...good, verifyTicket: true, [k]: '' }).ok, false, k);
+  for (const k of ['pawnLicense', 'street', 'disclosureText', 'receiptStatement']) assert.equal(validateSettings({ ...good, verifyTicket: true, [k]: '' }).ok, false, k);
 });
 test('applySettings updates CONFIG in place and the loan engine follows it', () => {
   const C = fresh(), v = validateSettings({ ...good, ratePct: '10', verifyTicket: true, resaleHoldDays: '30' }).value;
   applySettings(C, v);
   assert.equal(C.loan.monthlyRate, 0.1); assert.equal(C.shop.address, '1 Main St, Salem, CT 06420'); assert.equal(C.compliance.resaleHoldDays, 30);
-  assert.equal(C.compliance.verified, true); assert.equal(C.shop.licenseNumbers.pawn, 'P-1');
+  assert.equal(C.compliance.verified, true); assert.equal(C.shop.licenseNumbers.pawn, 'P-1'); assert.equal(C.compliance.minSellerAge, null);
   assert.equal(payoff({ principal: 10000, originDate: '2026-11-01' }, '2026-12-01', C.loan), 11000);
 });
 test('verified flag needs real content even if the box was ticked in stored data', () => {
@@ -45,4 +45,10 @@ test('toForm round-trips', () => {
 test('defaults before any settings are saved stay unverified', () => {
   const C = fresh(); applySettings(C, null);
   assert.equal(C.compliance.verified, false); assert.equal(C.compliance.resaleHoldDays, null);
+});
+test('minimum seller age and receipt statement flow through', () => {
+  const C = fresh(), v = validateSettings({ ...good, minSellerAge: '18' }).value;
+  applySettings(C, v);
+  assert.equal(C.compliance.minSellerAge, 18); assert.equal(C.ticket.receiptStatement, 'I own this.');
+  applySettings(C, validateSettings({ ...good, verifyTicket: true, receiptStatement: 'x' }).value); assert.equal(C.compliance.verified, true);
 });

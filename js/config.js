@@ -20,8 +20,11 @@ export const CONFIG = {
   ticket: {
     firstNumber: 1001,
     disclosureText: '',           // REQUIRED state disclosures: owner/attorney supplies the exact text. VERIFY
+    receiptStatement: '',         // seller's ownership statement on purchase receipts: owner/attorney supplies. VERIFY
+    firstBuyNumber: 5001,
   },
   compliance: {
+    minSellerAge: null,           // minimum age to pawn/sell to the shop; null = not enforced. VERIFY
     resaleHoldDays: null,         // VERIFY CT/municipal hold length; null = not confirmed
     policeReporting: { vendor: null }, // LeadsOnline / BWI / local PD. VERIFY
     verified: false,              // ticket content verified (set from Settings); never show "compliant" labels while false

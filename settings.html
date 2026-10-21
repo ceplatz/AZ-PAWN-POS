@@ -58,16 +58,18 @@
 
   <fieldset><legend>Pawn ticket disclosures <i class="v">VERIFY</i></legend>
     <label><span>Required disclosure text (printed on every ticket)</span><textarea name="disclosureText" rows="7" placeholder="Paste the exact wording your attorney provides."></textarea></label>
-    <p class="note">Leave empty until you have the approved text. The ticket prints a red placeholder instead, and cannot be marked verified.</p></fieldset>
+    <label style="display:block;margin-top:12px"><span>Purchase receipt: seller's ownership statement</span><textarea name="receiptStatement" rows="4" placeholder="e.g. the statement the seller signs that they own the item. Use the wording your attorney provides."></textarea></label>
+    <p class="note">Leave empty until you have the approved text. Tickets and receipts print a red placeholder instead, and cannot be marked verified.</p></fieldset>
 
   <fieldset><legend>Compliance <i class="v">VERIFY</i></legend><div class="g">
     <label><span>Resale hold period (days)</span><input name="resaleHoldDays" inputmode="numeric" placeholder="blank = not set"></label>
+    <label><span>Minimum age to pawn or sell to the shop</span><input name="minSellerAge" inputmode="numeric" placeholder="blank = not enforced"></label>
     <label><span>Police reporting service</span><input name="policeVendor" placeholder="e.g. LeadsOnline, local PD"></label></div>
     <p class="note">While the hold period is blank, items you buy or forfeit stay <b>On hold</b> until a manager releases them by hand. A number here sets the hold date automatically; 0 means no hold.</p></fieldset>
 
   <fieldset><legend>Verification</legend>
     <label class="ck"><input type="checkbox" name="verifyLoan"><span><b>Loan terms verified</b>I have confirmed the interest, term, grace period and renewal rules with counsel / Regan.</span></label>
-    <label class="ck"><input type="checkbox" name="verifyTicket"><span><b>Ticket content verified</b>The shop address, license number and disclosure text have been reviewed by counsel. Removes the DRAFT banner from printed tickets. Needs license, address and disclosure filled in.</span></label>
+    <label class="ck"><input type="checkbox" name="verifyTicket"><span><b>Ticket and receipt content verified</b>The shop address, license number, ticket disclosure and receipt statement have been reviewed by counsel. Removes the DRAFT banner from printed tickets and receipts. Needs all four filled in.</span></label>
     <p class="note" id="lastSaved"></p></fieldset>
 
   <ul id="errs" hidden></ul>
