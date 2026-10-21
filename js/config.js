@@ -3,7 +3,7 @@
 // and ATF (firearms) before relying on it. Nothing here is a confirmed legal value.
 export const CONFIG = {
   shop: {
-    name: 'Statewide', // VERIFY exact legal/business name
+    name: 'AZ Pawn of Salem', // VERIFY exact legal/business name
     address: '', licenseNumbers: { pawn: '', ffl: '' }, // owner to supply
     timezone: 'America/New_York', locale: 'en-US', currency: 'USD',
   },

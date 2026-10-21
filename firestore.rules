@@ -17,6 +17,8 @@ service cloud.firestore {
     match /transactions/{id}{ allow read, create: if isStaff(); allow update, delete: if false; } // voids are new records
     // Users may read only their own role; nobody can write roles from the app (console only).
     match /roles/{uid}      { allow read: if request.auth != null && request.auth.uid == uid; allow write: if false; }
+    // Each manager/owner can read and write only their own PIN record (salted hash + lockout counters).
+    match /pins/{uid}       { allow read, write: if isMgr() && request.auth.uid == uid; }
     match /config/{doc}     { allow read: if isStaff(); allow write: if isOwner(); }
     match /{path=**}        { allow read, write: if false; }
   }
