@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Cash · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  input, select { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:10px 12px; font:inherit; } main { max-width:960px; }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); } .card { border:1px solid var(--line); border-radius:16px; padding:16px; background:linear-gradient(160deg,var(--panel-2),var(--panel)); }
+  .card h3 { margin:0 0 6px; font-size:.76rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); } .big { font-size:1.5rem; font-weight:800; } .muted { color:var(--muted); font-size:.85rem; }
+  .den { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; } .den label { display:block; font-size:.78rem; color:var(--muted); } .den input { width:100%; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; } th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); } th { color:var(--muted); font-weight:500; font-size:.74rem; letter-spacing:.06em; text-transform:uppercase; } td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .tag { font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--line-2); border-radius:999px; padding:2px 8px; color:var(--accent); } .tag.good { color:var(--good); } .tag.bad { color:var(--bad); }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; } .msg { min-height:1.4em; margin:8px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); } [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<header><a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a><div class="wordmark" style="margin-left:6px">Cash management</div><div class="spacer"></div><div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div></header>
+<main id="page" hidden>
+  <div class="grid" id="sum"></div>
+  <div class="card"><h3>Count the drawer</h3><div class="den" id="den"></div>
+    <div class="bar"><div>Counted: <b class="big" id="counted">$0.00</b></div><div class="muted" id="expLine"></div></div>
+    <div class="bar"><input id="note" placeholder="Note (required if the count is off)" style="flex:1;min-width:220px"><button class="ghost" id="open">Save as opening count</button><button class="gold" id="close">Save as closing count</button></div><p class="msg" id="cmsg" role="alert"></p></div>
+  <div class="card"><h3>Pay out of the drawer</h3><div class="bar" style="margin-top:0"><select id="otype"><option value="expense">Expense</option><option value="payout">Payout</option></select><input id="oamt" inputmode="decimal" placeholder="Amount $" style="width:120px"><input id="ocat" placeholder="Category (supplies, fuel...)" style="width:200px"><input id="onote" placeholder="Note" style="flex:1;min-width:180px"><button class="gold" id="osave">Record</button></div><p class="msg" id="omsg"></p></div>
+  <div class="card"><h3>Recent counts</h3><div id="hist"></div></div>
+</main>
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { listCounts, saveCount, recordOutflow } from './js/cash.js';
+  import { listTransactions } from './js/insights-data.js';
+  import { dailyReport } from './js/daily-logic.js';
+  import { DENOMS, countTotal, expectedCash, variance, openingFloat } from './js/cash-logic.js';
+  import { parseMoney, fmtMoney } from './js/item-logic.js';
+  import { todayET } from './js/dates.js';
+  const $ = (id) => document.getElementById(id), esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const card = (h, big, sub) => `<div class="card"><h3>${h}</h3><div class="big">${big}</div><div class="muted">${sub || ''}</div></div>`;
+  const say = (el, t, k = '') => { $(el).textContent = t; $(el).className = 'msg ' + k; };
+  let counts = [], rep = null, open = null; const today = todayET();
+  $('den').innerHTML = DENOMS.map((d) => `<label>${d.l}<input data-v="${d.v}" inputmode="numeric" placeholder="0"></label>`).join('');
+  const read = () => Object.fromEntries([...document.querySelectorAll('#den input')].map((i) => [i.dataset.v, i.value]));
+  const exp = () => expectedCash(open?.total ?? null, rep || { cash: { net: 0 } });
+  function paint() {
+    const c = countTotal(read()), e = exp(), v = variance(c, e); $('counted').textContent = fmtMoney(c);
+    $('expLine').innerHTML = e == null ? '<span class="tag bad">no opening float known</span> Save an opening count first.' : `Expected ${fmtMoney(e)} · ${v.status === 'balanced' ? '<span class="tag good">balanced</span>' : `<span class="tag bad">${v.status} ${fmtMoney(Math.abs(v.amount))}</span>`}`;
+  }
+  $('den').oninput = paint;
+  async function load() {
+    try { counts = await listCounts(); rep = dailyReport(await listTransactions(today, today), today); open = openingFloat(counts, today);
+      $('sum').innerHTML = card('Opening float', open.total == null ? '—' : fmtMoney(open.total), open.source) + card('Cash in today', fmtMoney(rep.cash.in), 'sales, redemptions, renewals') + card('Cash out today', fmtMoney(rep.cash.out), `loans, buys, expenses ${fmtMoney(rep.expenses.amount + rep.payouts.amount)}`) + card('Expected in drawer', exp() == null ? '—' : fmtMoney(exp()), 'opening + in − out');
+      $('hist').innerHTML = `<table><thead><tr><th>When</th><th>Type</th><th class="n">Counted</th><th class="n">Expected</th><th>Result</th><th>By</th><th>Note</th></tr></thead><tbody>${counts.map((c) => `<tr><td>${esc(c.date)}</td><td>${esc(c.kind)}</td><td class="n">${fmtMoney(c.total)}</td><td class="n">${c.expected == null ? '—' : fmtMoney(c.expected)}</td><td>${c.variance == null ? '' : c.variance === 0 ? '<span class="tag good">balanced</span>' : `<span class="tag bad">${c.variance > 0 ? 'over' : 'short'} ${fmtMoney(Math.abs(c.variance))}</span>`}</td><td>${esc(c.countedBy)}</td><td>${esc(c.note)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">No counts yet.</td></tr>'}</tbody></table>`;
+      paint();
+    } catch (e) { console.error(e); say('cmsg', 'Could not load. Check your connection.', 'bad'); }
+  }
+  async function save(kind) {
+    const total = countTotal(read()); if (!total && !confirm('The count is $0.00. Save it anyway?')) return;
+    const e = kind === 'close' ? exp() : null, v = kind === 'close' ? variance(total, e) : null;
+    if (v && v.amount !== 0 && !$('note').value.trim()) return say('cmsg', 'The drawer is not balanced: enter a note explaining the difference.', 'bad');
+    if (kind === 'close' && e == null && !confirm('There is no opening float, so the result cannot be checked. Save the closing count anyway?')) return;
+    try { await saveCount({ kind, counts: read(), total, expected: e, variance: v ? v.amount : null, note: $('note').value.trim() }); say('cmsg', kind === 'open' ? 'Opening count saved.' : 'Closing count saved.', 'good'); document.querySelectorAll('#den input').forEach((i) => { i.value = ''; }); $('note').value = ''; await load(); }
+    catch (err) { say('cmsg', 'Could not save. Check your connection.', 'bad'); console.error(err); }
+  }
+  $('open').onclick = () => save('open'); $('close').onclick = () => save('close');
+  $('osave').onclick = async () => { const amount = parseMoney($('oamt').value); if (!amount) return say('omsg', 'Enter the amount, like 12.50.', 'bad'); if (!$('ocat').value.trim()) return say('omsg', 'Enter a category.', 'bad');
+    if (!confirm(`Record a ${fmtMoney(amount)} ${$('otype').value} paid from the drawer?`)) return;
+    try { await recordOutflow({ type: $('otype').value, amount, category: $('ocat').value.trim(), note: $('onote').value.trim() }); say('omsg', 'Recorded.', 'good'); ['oamt', 'ocat', 'onote'].forEach((k) => { $(k).value = ''; }); await load(); } catch { say('omsg', 'Could not save.', 'bad'); } };
+  watchAuth((u, r) => { if (!u || !r || r === 'staff') return location.replace('index.html'); $('page').hidden = false; load(); });
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); }; addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

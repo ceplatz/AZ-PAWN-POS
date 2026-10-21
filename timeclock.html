@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Time clock · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  input, select { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:10px 12px; font:inherit; } main { max-width:900px; }
+  .card { border:1px solid var(--line); border-radius:16px; padding:18px; background:linear-gradient(160deg,var(--panel-2),var(--panel)); } .card h3 { margin:0 0 8px; font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); }
+  .clock { text-align:center; } .clock .big { font-size:2.4rem; font-weight:800; margin:6px 0; } .clock button { font-size:1.3rem; padding:20px 40px; border-radius:18px; } .out { background:var(--bad); color:#fff; border:0; font-weight:800; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; } th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); } th { color:var(--muted); font-weight:500; font-size:.74rem; letter-spacing:.06em; text-transform:uppercase; } td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .muted { color:var(--muted); font-size:.85rem; } .tag { font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--line-2); border-radius:999px; padding:2px 8px; color:var(--accent); } .tag.good { color:var(--good); } .tag.bad { color:var(--bad); }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } [hidden] { display:none !important; } .msg { min-height:1.4em; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); }
+</style>
+</head>
+<body>
+<header><a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a><div class="wordmark" style="margin-left:6px">Time clock</div><div class="spacer"></div><div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div></header>
+<main id="page" hidden>
+  <div class="card clock"><h3 id="who"></h3><div class="big" id="now"></div><div class="muted" id="state"></div><p><button class="gold" id="btn"></button></p><p class="msg" id="msg" role="alert"></p></div>
+  <div class="card"><h3>My recent shifts</h3><div id="mine"></div></div>
+  <div id="mgr" hidden>
+    <div class="card" style="margin-bottom:18px"><h3>Clocked in right now</h3><div id="here"></div></div>
+    <div class="card"><h3>Hours worked</h3><div class="bar"><label class="muted">From <input type="date" id="f"></label><label class="muted">To <input type="date" id="t"></label></div><div id="hours" style="margin-top:10px"></div></div>
+    <div class="card" style="margin-top:18px"><h3>All shifts in range (tap to correct)</h3><div id="all"></div><div id="fix" hidden style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+      <b id="fixWho"></b><div class="bar" style="margin-top:8px"><label class="muted">In <input type="datetime-local" id="fi"></label><label class="muted">Out <input type="datetime-local" id="fo"></label><input id="fn" placeholder="Reason for the correction *" style="min-width:240px"><button class="gold" id="fs">Save correction</button></div><p class="msg" id="fm"></p></div></div>
+  </div>
+</main>
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { myEntries, allEntries, clockIn, clockOut, adjustEntry } from './js/timeclock.js';
+  import { hoursBetween, hoursByEmployee, openEntry, fmtHours, suspicious } from './js/timeclock-logic.js';
+  import { todayET } from './js/dates.js';
+  const $ = (id) => document.getElementById(id), esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const tm = (iso) => new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }), dt = (iso) => new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
+  const shift = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  const local = (iso) => { const d = new Date(iso), p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+  let user = null, role = null, mine = [], entries = [], fixing = null;
+
+  watchAuth(async (u, r) => { if (!u || !r) return location.replace('index.html'); user = u; role = r; $('page').hidden = false; $('who').textContent = u.email; $('mgr').hidden = !(r === 'owner' || r === 'manager');
+    if (!$('mgr').hidden) { $('f').value = shift(todayET(), -13); $('t').value = todayET(); $('f').onchange = $('t').onchange = loadMgr; }
+    await load(); setInterval(tick, 30000); });
+  const tick = () => { $('now').textContent = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }); };
+  async function load() { tick(); try { mine = await myEntries(user.uid); paintMine(); if (!$('mgr').hidden) await loadMgr(); } catch (e) { console.error(e); $('msg').textContent = 'Could not load. Check your connection.'; $('msg').className = 'msg bad'; } }
+  function paintMine() {
+    const o = openEntry(mine, user.uid); $('state').innerHTML = o ? `Clocked in since <b>${tm(o.inAt)}</b>` : 'Clocked out'; $('btn').textContent = o ? 'Clock out' : 'Clock in'; $('btn').className = o ? 'out' : 'gold'; $('btn').style.cssText = 'font-size:1.3rem;padding:20px 40px;border-radius:18px';
+    $('mine').innerHTML = `<table><thead><tr><th>Day</th><th>In</th><th>Out</th><th class="n">Hours</th></tr></thead><tbody>${mine.slice(0, 14).map((e) => `<tr><td>${dt(e.inAt)}</td><td>${tm(e.inAt)}</td><td>${e.outAt ? tm(e.outAt) : '<span class="tag good">on the clock</span>'}</td><td class="n">${fmtHours(hoursBetween(e.inAt, e.outAt || new Date().toISOString()))}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No shifts yet.</td></tr>'}</tbody></table>`;
+  }
+  $('btn').onclick = async () => { $('btn').disabled = true; $('msg').textContent = '';
+    try { const o = openEntry(mine, user.uid); if (o) await clockOut(o); else await clockIn(); $('msg').textContent = o ? 'Clocked out.' : 'Clocked in.'; $('msg').className = 'msg good'; await load(); }
+    catch (e) { $('msg').textContent = 'Could not save. Check your connection and try again.'; $('msg').className = 'msg bad'; console.error(e); } finally { $('btn').disabled = false; } };
+
+  async function loadMgr() {
+    entries = await allEntries($('f').value, $('t').value); const now = new Date().toISOString(), here = entries.filter((e) => !e.outAt);
+    $('here').innerHTML = here.length ? here.map((e) => `<div>${esc(e.employeeEmail)} <span class="muted">since ${tm(e.inAt)}</span></div>`).join('') : '<span class="muted">Nobody is clocked in.</span>';
+    const H = hoursByEmployee(entries, $('f').value, $('t').value, now);
+    $('hours').innerHTML = `<table><thead><tr><th>Employee</th><th class="n">Shifts</th><th class="n">Hours</th></tr></thead><tbody>${H.map((h) => `<tr><td>${esc(h.email)}${h.open ? ' <span class="tag good">on the clock</span>' : ''}</td><td class="n">${h.shifts}</td><td class="n">${fmtHours(h.hours)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No shifts in this range.</td></tr>'}</tbody></table>`;
+    const sus = new Set(suspicious(entries, now).map((e) => e.id));
+    $('all').innerHTML = `<table><thead><tr><th>Employee</th><th>Day</th><th>In</th><th>Out</th><th class="n">Hours</th></tr></thead><tbody>${entries.map((e) => `<tr data-id="${e.id}" style="cursor:pointer"><td>${esc(e.employeeEmail)}</td><td>${dt(e.inAt)}</td><td>${tm(e.inAt)}</td><td>${e.outAt ? tm(e.outAt) : 'open'}</td><td class="n">${fmtHours(hoursBetween(e.inAt, e.outAt || now))} ${sus.has(e.id) ? '<span class="tag bad">check</span>' : ''}${e.adjustedBy ? ' <span class="tag">corrected</span>' : ''}</td></tr>`).join('')}</tbody></table>`;
+  }
+  $('all').onclick = (e) => { const r = e.target.closest('tr[data-id]'); if (!r) return; fixing = entries.find((x) => x.id === r.dataset.id); $('fix').hidden = false; $('fixWho').textContent = `${fixing.employeeEmail}, ${dt(fixing.inAt)}`; $('fi').value = local(fixing.inAt); $('fo').value = fixing.outAt ? local(fixing.outAt) : ''; $('fn').value = ''; $('fm').textContent = ''; };
+  $('fs').onclick = async () => { if (!$('fn').value.trim()) { $('fm').textContent = 'Enter a reason.'; $('fm').className = 'msg bad'; return; }
+    const inAt = new Date($('fi').value).toISOString(), outAt = $('fo').value ? new Date($('fo').value).toISOString() : null; if (outAt && outAt < inAt) { $('fm').textContent = 'Out must be after in.'; $('fm').className = 'msg bad'; return; }
+    try { await adjustEntry(fixing.id, { inAt, outAt, note: $('fn').value.trim() }); $('fix').hidden = true; await load(); } catch { $('fm').textContent = 'Could not save.'; $('fm').className = 'msg bad'; } };
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); }; addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

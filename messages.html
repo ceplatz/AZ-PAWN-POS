@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Messages · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  textarea, select { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:12px 14px; font:inherit; width:100%; } main { max-width:760px; }
+  .msgs { display:grid; gap:10px; } .m { border:1px solid var(--line); border-radius:14px; padding:12px 16px; background:var(--panel-2); } .m.mine { border-color:var(--line-2); margin-left:40px; } .m.new { border-color:var(--accent); }
+  .m small { color:var(--muted); display:block; margin-bottom:4px; } .m p { margin:0; white-space:pre-wrap; } .tag { font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--line-2); border-radius:999px; padding:2px 8px; color:var(--accent); }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } .muted { color:var(--muted); } [hidden] { display:none !important; } .msg { min-height:1.4em; } .msg.bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<header><a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a><div class="wordmark" style="margin-left:6px">Messages</div><div class="spacer"></div><div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div></header>
+<main id="page" hidden>
+  <div><textarea id="text" rows="3" placeholder="Message to the owner / counter…"></textarea>
+    <div class="bar" style="margin-top:8px"><label class="muted" id="audWrap">To <select id="aud" style="width:auto"></select></label><span style="flex:1"></span><button class="gold" id="send">Send</button></div><p class="msg" id="err" role="alert"></p></div>
+  <div class="msgs" id="list"><p class="muted">Loading…</p></div>
+</main>
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { listMessages, sendMessage, markRead } from './js/messages.js';
+  const $ = (id) => document.getElementById(id), esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let user = null, role = null, timer = null; const mgr = () => role === 'owner' || role === 'manager';
+  const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  watchAuth(async (u, r) => { if (!u || !r) return location.replace('index.html'); user = u; role = r; $('page').hidden = false;
+    $('aud').innerHTML = mgr() ? '<option value="all">Everyone</option><option value="managers">Owner &amp; managers only</option>' : '<option value="managers">Owner &amp; managers only (private)</option><option value="all">Everyone at the counter</option>';
+    await load(); timer = setInterval(load, 20000); });
+  async function load() {
+    try { const ms = await listMessages(role); const fresh = ms.filter((m) => m.fromUid !== user.uid && !(m.readBy || []).includes(user.uid));
+      $('list').innerHTML = ms.map((m) => `<div class="m ${m.fromUid === user.uid ? 'mine' : ''} ${fresh.includes(m) ? 'new' : ''}"><small><b>${esc(m.fromEmail)}</b> · ${esc(m.fromRole)} · ${when(m.sentAt)} ${m.audience === 'managers' ? '<span class="tag">managers only</span>' : ''} ${fresh.includes(m) ? '<span class="tag">new</span>' : ''}</small><p>${esc(m.text)}</p></div>`).join('') || '<p class="muted">No messages yet.</p>';
+      await Promise.all(fresh.map((m) => markRead(m).catch(() => {})));
+    } catch (e) { console.error(e); $('list').innerHTML = '<p class="muted">Could not load messages. Check your connection.</p>'; }
+  }
+  $('send').onclick = async () => { const t = $('text').value.trim(); if (!t) return; $('send').disabled = true; $('err').textContent = '';
+    try { await sendMessage(role, t, $('aud').value); $('text').value = ''; await load(); } catch (e) { $('err').textContent = 'Could not send. Check your connection.'; $('err').className = 'msg bad'; console.error(e); } finally { $('send').disabled = false; } };
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); }; addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

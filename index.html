@@ -37,6 +37,8 @@
     <p id="today"></p>
   </section>
 
+  <section id="rem" hidden style="display:grid;gap:8px"></section>
+  <section id="quick" style="display:flex;gap:10px;flex-wrap:wrap"><a class="pill" href="timeclock.html" style="text-decoration:none">&#9201;&nbsp;Time clock</a><a class="pill" href="messages.html" style="text-decoration:none" id="msgPill">&#9993;&nbsp;Messages</a></section>
   <section id="chips" style="display:flex;gap:10px;flex-wrap:wrap" hidden></section>
 
   <section class="grid">
@@ -94,7 +96,7 @@
 
   // ---- owner PIN gate ----
   const MODS = [['Reports of the Day', 'daily.html'], ['Briefing', 'briefing.html'], ['Reports & insights', 'reports.html'], ['Loans ledger', 'loans.html'], ['Customers', 'customers.html'], ['Inventory management', 'inventory.html'],
-    ['Firearms A&D book', 'firearms.html'], ['Messaging'], ['Reminders'], ['Cash management'], ['Settings', 'settings.html', true]];
+    ['Firearms A&D book', 'firearms.html'], ['Police reports', 'compliance.html'], ['Time clock', 'timeclock.html'], ['Messaging', 'messages.html'], ['Reminders', 'reminders.html'], ['Cash management', 'cash.html'], ['Settings', 'settings.html', true]];
   $('mods').innerHTML = MODS.map(([n, href]) => href
     ? `<a class="mod" href="${href}" data-owner="${MODS.find(m => m[0] === n)[2] ? 1 : ''}" style="text-decoration:none;color:inherit;cursor:pointer"><em style="color:var(--good)">Open</em><b>${n}</b><span>${n === 'Settings' ? 'Owner only: shop, loan terms, ticket, compliance' : 'Open this page'}</span></a>`
     : `<div class="mod"><em>Soon</em><b>${n}</b><span>Coming in a later build step</span></div>`).join('');
@@ -123,6 +125,18 @@
     catch { $('err').textContent = 'Sign-in failed. Check your email and password.'; }
   };
 
+  async function reminders() {
+    try {
+      const R = await import('./js/reminders.js'), L = await import('./js/reminders-logic.js'), now = L.nowET();
+      const due = L.dueReminders(await R.listReminders(), await R.ackedKeys(now.date), now);
+      $('rem').innerHTML = due.map((r) => `<div class="pill" style="border-color:var(--accent);justify-content:space-between;width:100%;border-radius:12px;padding:10px 14px"><span><b style="color:var(--accent)">Reminder ${r.time}</b> &nbsp;${r.text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</span><button class="ghost" data-ack="${r.id}" style="padding:6px 14px">Done</button></div>`).join(''); $('rem').hidden = !due.length;
+      $('rem').onclick = async (e) => { const id = e.target.dataset.ack; if (!id) return; try { await R.ack(due.find((x) => x.id === id), now.date); reminders(); } catch { /* try again */ } };
+    } catch { /* reminders are optional */ }
+  }
+  async function unread(user, r) {
+    try { const M = await import('./js/messages.js'), L = await import('./js/messages-logic.js'), n = L.unreadCount(await M.listMessages(r, 50), user.uid, r);
+      $('msgPill').innerHTML = `&#9993;&nbsp;Messages${n ? ` <b style="color:var(--accent)">${n} new</b>` : ''}`; } catch { /* optional */ }
+  }
   async function chips() {
     try {
       const { loadAlerts } = await import('./js/insights-data.js'), { alerts: a } = await loadAlerts();
@@ -132,7 +146,7 @@
     } catch { /* alerts are optional */ }
   }
   watchAuth((user, r) => {
-    role = r; uid = user ? user.uid : null; if (user && r) chips();
+    role = r; uid = user ? user.uid : null; if (user && r) { chips(); reminders(); unread(user, r); }
     if (!user) lock();
     const ok = !!user && !!r;
     $('gate').hidden = ok;

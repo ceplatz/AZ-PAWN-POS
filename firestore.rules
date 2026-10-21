@@ -53,6 +53,7 @@ service cloud.firestore {
       allow update: if isStaff() && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['status', 'originDate', 'renewals', 'closedDate', 'history', 'updatedAt', 'updatedBy'])
         && (request.resource.data.status != 'forfeited' || isMgr()); }
+    match /loans/{id}       { allow update: if isMgr() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['policeReport', 'updatedAt', 'updatedBy']); }
     // Sequential pawn ticket numbers: the counter may only ever go up by exactly one.
     match /counters/{doc}   { allow read: if isStaff(); allow create: if isStaff() && request.resource.data.next is int;
       allow update: if isStaff() && request.resource.data.next == resource.data.next + 1; }
@@ -67,7 +68,7 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disp', 'updatedAt', 'updatedBy']); }   // a disposition can be added once
     match /firearmTransfers/{id} { allow read: if isStaff(); allow create: if isStaff() && request.resource.data.nicsResult == 'Proceed'; allow update, delete: if false; }
     match /firearmChecks/{id}    { allow read: if isStaff(); allow create: if isStaff(); allow update, delete: if false; }
-    match /transactions/{id}{ allow create: if isStaff(); allow read: if isMgr(); allow update, delete: if false; } // voids are new records
+    match /transactions/{id}{ allow create: if isStaff() && (!(request.resource.data.type in ['expense', 'payout']) || isMgr()); allow read: if isMgr(); allow update, delete: if false; } // voids are new records
     // Users may read only their own role; nobody can write roles from the app (console only).
     match /roles/{uid}      { allow read: if request.auth != null && request.auth.uid == uid; allow write: if false; }
     // Each manager/owner can read and write only their own PIN record (salted hash + lockout counters).
@@ -75,6 +76,17 @@ service cloud.firestore {
     match /config/{doc}     { allow read: if isStaff(); allow write: if isOwner(); }
     // Every settings change is logged (before/after). Append-only, owner-readable.
     match /settingsLog/{id} { allow create: if isOwner(); allow read: if isOwner(); allow update, delete: if false; }
+    // ---- Operations ----
+    match /timeEntries/{id} { allow read: if isMgr() || (isStaff() && resource.data.employeeUid == request.auth.uid);
+      allow create: if isStaff() && request.resource.data.employeeUid == request.auth.uid && request.resource.data.outAt == null; allow delete: if false;
+      allow update: if (isStaff() && resource.data.employeeUid == request.auth.uid && resource.data.outAt == null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['outAt']))
+        || (isMgr() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['inAt', 'outAt', 'adjustedBy', 'adjustedAt', 'note'])); }
+    match /drawerCounts/{id} { allow read, create: if isMgr(); allow update, delete: if false; }
+    match /messages/{id}    { allow read: if isStaff() && (resource.data.audience == 'all' || isMgr()); allow delete: if false;
+      allow create: if isStaff() && request.resource.data.fromUid == request.auth.uid && request.resource.data.audience in ['all', 'managers'];
+      allow update: if isStaff() && (resource.data.audience == 'all' || isMgr()) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']); }
+    match /reminders/{id}   { allow read: if isStaff(); allow create, update: if isMgr(); allow delete: if isOwner(); }
+    match /reminderLog/{id} { allow read, create: if isStaff(); allow update, delete: if false; }
     match /{path=**}        { allow read, write: if false; }
   }
 }
