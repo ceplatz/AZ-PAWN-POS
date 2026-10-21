@@ -84,20 +84,20 @@
     background:
       radial-gradient(800px 500px at 50% -10%, rgba(239,90,31,.20), transparent 60%),
       radial-gradient(700px 500px at 100% 110%, rgba(43,138,163,.14), transparent 60%), var(--bg); }
-  .card { width:min(400px,100%); padding:34px 30px 28px; border-radius:24px; background:linear-gradient(160deg, var(--panel-2), var(--panel));
+  .signin { width:min(400px,100%); padding:34px 30px 28px; border-radius:24px; background:linear-gradient(160deg, var(--panel-2), var(--panel));
     border:1px solid var(--line-2); box-shadow:0 30px 80px rgba(0,0,0,.55); }
   .logo-big { display:block; width:200px; max-width:60%; margin:0 auto 10px; border-radius:18px; box-shadow:0 14px 40px rgba(0,0,0,.5); }
   .logo-sm { width:46px; height:46px; border-radius:10px; object-fit:cover; box-shadow:0 4px 14px rgba(0,0,0,.4); }
-  .card .mark { width:56px; height:56px; border-radius:16px; margin:0 auto 18px; }
-  .card .mark svg { width:32px; height:32px; }
-  .card h2 { margin:0; text-align:center; font-size:1.5rem; letter-spacing:.2em; text-transform:uppercase; font-weight:800; }
-  .card .sub { text-align:center; color:var(--muted); margin:6px 0 24px; font-size:.9rem; }
+  .signin .mark { width:56px; height:56px; border-radius:16px; margin:0 auto 18px; }
+  .signin .mark svg { width:32px; height:32px; }
+  .signin h2 { margin:0; text-align:center; font-size:1.5rem; letter-spacing:.2em; text-transform:uppercase; font-weight:800; }
+  .signin .sub { text-align:center; color:var(--muted); margin:6px 0 24px; font-size:.9rem; }
   .field { display:block; margin-bottom:14px; }
   .field span { display:block; font-size:.75rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
   .field input { width:100%; background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text);
     padding:14px 15px; font:inherit; transition:.15s; }
   .field input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
-  .card .gold { width:100%; padding:15px; font-size:1rem; margin-top:6px; }
+  .signin .gold { width:100%; padding:15px; font-size:1rem; margin-top:6px; }
   #err { color:var(--bad); margin:14px 0 0; min-height:1.3em; text-align:center; font-size:.88rem; }
 
   /* ---------- dialog ---------- */

@@ -33,9 +33,10 @@ export async function createLoan({ customer, principal, method = 'cash', items }
     tx.set(counter, { next: ticketNumber + 1 });
     items.forEach((it, i) => tx.set(refs[i], itemData({ ...it.f, source: 'pawn-collateral', costBasis: null, loanId: loanRef.id }, paths[i])));
     tx.set(loanRef, {
-      ticketNumber, customerId: customer.id, customerName: `${customer.firstName} ${customer.lastName}`, principal, originDate, terms,
+      ticketNumber, customerId: customer.id, customerName: `${customer.firstName} ${customer.lastName}`, principal, originDate, issuedDate: originDate, terms,
       status: 'active', renewals: 0, history: [], itemIds: refs.map((r) => r.id),
-      itemSummaries: items.map((it) => ({ title: it.f.title, category: it.f.category, serial: (it.f.serial || '').trim(), brand: it.f.brand || '', model: it.f.model || '' })),
+      itemSummaries: items.map((it) => ({ title: it.f.title, category: it.f.category, serial: (it.f.serial || '').trim(), brand: it.f.brand || '', model: it.f.model || '', estValue: it.f.estValue ?? null })),
+      policeReport: { status: 'pending' },
       createdBy: auth.currentUser?.uid || null, createdByEmail: auth.currentUser?.email || null, createdAt: serverTimestamp(),
     });
     tx.set(doc(collection(db, 'transactions')), txRecord({ type: 'loan-out', amount: principal, method, loanId: loanRef.id, ticketNumber, customerId: customer.id }));

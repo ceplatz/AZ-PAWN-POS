@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Reports · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  input[type=date] { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:10px 12px; font:inherit; } input[type=search], select { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:10px 12px; font:inherit; }
+  main { max-width:1100px; } .tabs, .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; } .tabs button { padding:10px 16px; } .tabs button.on { border-color:var(--accent); color:var(--accent); }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); } .card { border:1px solid var(--line); border-radius:16px; padding:14px 16px; background:linear-gradient(160deg,var(--panel-2),var(--panel)); min-width:0; }
+  .card h3 { margin:0 0 6px; font-size:.74rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); } .big { font-size:1.5rem; font-weight:800; } .muted { color:var(--muted); font-size:.82rem; } h2.sec { margin:8px 0 0; font-size:1rem; letter-spacing:.06em; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; } th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); font-weight:500; font-size:.74rem; letter-spacing:.06em; text-transform:uppercase; } td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .scroll { overflow:auto; } .tag { font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--line-2); border-radius:999px; padding:2px 8px; color:var(--accent); white-space:nowrap; } .tag.bad { color:var(--bad); } .tag.good { color:var(--good); }
+  .chart { position:relative; } .chart svg { width:100%; height:auto; display:block; } .tip { position:absolute; pointer-events:none; background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:6px 10px; font-size:.8rem; white-space:nowrap; transform:translate(-50%,-110%); z-index:3; }
+  [hidden] { display:none !important; } .note { color:var(--muted); font-size:.82rem; }
+  @media print { header, .tabs, .bar { display:none !important; } body { background:#fff; color:#000; } .card { background:#fff; border-color:#999; } [data-pane][hidden] { display:block !important; } }
+</style>
+</head>
+<body>
+<header><a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a><div class="wordmark" style="margin-left:6px">Reports</div><div class="spacer"></div><div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div></header>
+<main id="page" hidden>
+  <div class="tabs" id="tabs"><button class="ghost on" data-t="loans">Loans</button><button class="ghost" data-t="inv">Inventory</button><button class="ghost" data-t="sales">Sales &amp; cash</button><button class="ghost" data-t="cust">Customers</button><button class="ghost" data-t="emp">Employees</button></div>
+  <p class="note" id="loadNote">Loading…</p>
+
+  <section data-pane="loans"></section>
+  <section data-pane="inv" hidden></section>
+  <section data-pane="sales" hidden></section>
+  <section data-pane="cust" hidden></section>
+  <section data-pane="emp" hidden></section>
+</main>
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { listLoans } from './js/loans.js';
+  import { listItems } from './js/items.js';
+  import { listSales } from './js/sales.js';
+  import { listCustomers } from './js/customers.js';
+  import { listTransactions } from './js/insights-data.js';
+  import { loanStats, inventoryStats, salesStats, customerInsights, employeeScorecards } from './js/reports-logic.js';
+  import { suggestMarkdown, onFloor } from './js/inventory-logic.js';
+  import { todayET } from './js/dates.js';
+  import { fmtMoney } from './js/item-logic.js';
+  import { barChart } from './js/charts.js';
+
+  const $ = (s) => document.querySelector(s), esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const pct = (x) => (x == null ? '—' : `${(x * 100).toFixed(0)}%`), days = (x) => (x == null ? '—' : `${x.toFixed(0)} d`), card = (h, big, sub) => `<div class="card"><h3>${h}</h3><div class="big">${big}</div><div class="muted">${sub || ''}</div></div>`;
+  const table = (head, rows, empty = 'No data.') => `<div class="scroll"><table><thead><tr>${head.map((h, i) => `<th class="${i ? 'n' : ''}">${h}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i ? 'n' : ''}">${c}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${head.length}" class="muted">${empty}</td></tr>`}</tbody></table></div>`;
+  const D = { today: todayET() }; let state = {};
+  const shift = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  let range = { from: shift(D.today, -29), to: D.today };
+
+  watchAuth(async (user, role) => {
+    if (!user || !role || role === 'staff') return location.replace('index.html');
+    $('#page').hidden = false;
+    try {
+      const [loans, items, sales, customers] = await Promise.all([listLoans(2000), listItems(2000), listSales(2000), listCustomers(2000)]);
+      const txs = await listTransactions('2000-01-01', D.today, 20000); let hours = {};
+      try { const m = await import('./js/timeclock.js'); hours = await m.hoursByEmail(range.from, range.to); } catch { /* time clock not available */ }
+      state = { loans, items, sales, customers, txs, hours }; $('#loadNote').hidden = true; renderAll();
+    } catch (e) { console.error(e); $('#loadNote').textContent = 'Could not load reports. Check your connection.'; }
+  });
+  $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b)); document.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.t; }); };
+  const pane = (n, html) => { $(`[data-pane=${n}]`).innerHTML = html; };
+
+  function renderAll() {
+    const { loans, items, sales, customers, txs } = state;
+    // ---- loans
+    const L = loanStats(loans, txs, D.today), openLoans = loans.filter((l) => !['redeemed', 'forfeited'].includes(l.status));
+    pane('loans', `<div class="grid">${card('Redemption rate', pct(L.redemptionRate), 'of closed loans')}${card('Forfeiture rate', pct(L.forfeitureRate), 'of closed loans')}${card('Average loan', fmtMoney(L.avgLoan))}${card('Avg days to redeem', days(L.avgDaysToRedeem))}
+      ${card('Interest income (all time)', fmtMoney(L.interestIncome), 'redemption + renewal interest')}${card('Forfeited value', fmtMoney(L.forfeitureValue), 'principal moved to inventory')}${card('Avg loan-to-value', L.avgLtv == null ? '—' : pct(L.avgLtv), `${L.ltvSample} loans with value estimates`)}${card('Open loans', openLoans.length, `${fmtMoney(openLoans.reduce((a, l) => a + l.principal, 0))} principal out`)}</div>
+      <h2 class="sec">By status</h2>${table(['Status', 'Loans'], Object.entries(L.byStatus).map(([k, v]) => [esc(k), v]))}
+      <h2 class="sec">Redemption by category</h2>${table(['Category', 'Redeemed', 'Forfeited', 'Rate'], L.byCategory.map((c) => [esc(c.category), c.redeemed, c.forfeited, pct(c.redemptionRate)]))}`);
+    // ---- inventory
+    const I = inventoryStats(items, sales, D.today), md = onFloor(items).map((i) => ({ i, m: suggestMarkdown(i, D.today) })).filter((x) => x.m);
+    pane('inv', `<div class="grid">${card('On hand', I.units, 'for sale + on hold')}${card('Cost basis', fmtMoney(I.cost))}${card('Retail value', fmtMoney(I.retail))}${card('Unrealized margin', fmtMoney(I.unrealized))}${card('GMROI (approx.)', I.gmroi == null ? '—' : I.gmroi.toFixed(2), 'realized margin ÷ current inventory cost')}${card('Avg days to sell', days(I.avgDaysToSell))}</div>
+      <h2 class="sec">Aging</h2><div class="card"><div class="chart" id="ageChart"></div></div>${table(['Age', 'Items', 'Cost', 'Retail', 'Suggested'], I.buckets.map((b) => [esc(b.label), b.count, fmtMoney(b.cost), fmtMoney(b.retail), esc(b.action) + (b.pct ? ` (${b.pct}% off)` : '')]))}${I.unknown ? `<p class="note">${I.unknown} item(s) have no acquired date and are not aged.</p>` : ''}
+      <h2 class="sec">Margin by source</h2>${table(['Source', 'Items sold', 'Revenue', 'Margin', 'Margin %'], I.bySource.map((x) => [esc(x.key), x.count, fmtMoney(x.revenue), fmtMoney(x.margin), pct(x.marginPct)]))}
+      <h2 class="sec">Margin by category</h2>${table(['Category', 'Items sold', 'Revenue', 'Margin', 'Margin %'], I.byCategory.map((x) => [esc(x.key), x.count, fmtMoney(x.revenue), fmtMoney(x.margin), pct(x.marginPct)]))}${I.linesWithoutCost ? `<p class="note">${I.linesWithoutCost} sale line(s) have no cost recorded and are excluded from margins.</p>` : ''}
+      <h2 class="sec">Turn rate by category</h2>${table(['Category', 'Sold', 'On floor', 'Sell-through', 'Avg days to sell'], I.turn.map((t) => [esc(t.category), t.sold, t.onFloor, pct(t.sellThrough), days(t.avgDaysToSell)]))}
+      <h2 class="sec">Dead stock (over a year)</h2>${table(['Item', 'Cost', 'Asking'], I.deadStock.map((i) => [esc(i.title), fmtMoney(i.costBasis), fmtMoney(i.askPrice)]), 'No dead stock.')}
+      <h2 class="sec">Below target margin (under 20%)</h2>${table(['Item', 'Cost', 'Asking'], I.belowTarget.map((i) => [esc(i.title), fmtMoney(i.costBasis), fmtMoney(i.askPrice)]), 'None.')}
+      <h2 class="sec">Markdown suggestions</h2>${table(['Item', 'Age', 'Now', 'Suggested'], md.slice(0, 40).map(({ i, m }) => [esc(i.title), `${m.age} d`, fmtMoney(m.from), `${fmtMoney(m.to)} (${m.pct}% off)${m.belowCost ? ' <span class="tag bad">below cost</span>' : ''}`]), 'None.')}`);
+    barChart($('#ageChart'), I.buckets.map((b) => ({ label: b.label.replace(' days', ''), value: b.count })), { fmt: (v) => `${v} item${v === 1 ? '' : 's'}`, title: 'Items on the floor by age (days)' });
+    renderSales(); renderCust(); renderEmp();
+  }
+  function renderSales() {
+    const { sales, txs } = state, S = salesStats(sales, txs, range.from, range.to);
+    pane('sales', `<div class="bar"><label class="muted">From <input type="date" id="rf" value="${range.from}"></label><label class="muted">To <input type="date" id="rt" value="${range.to}"></label></div>
+      <div class="grid">${card('Sales', fmtMoney(S.total), `${S.count} sale(s)`)}${card('Gross margin', fmtMoney(S.margin), pct(S.marginPct) + ' on costed items')}${card('Avg ticket', fmtMoney(S.avgTicket))}${card('Sales tax collected', fmtMoney(S.tax))}${card('Bought', fmtMoney(S.buys.total), `${S.buys.count} purchase(s)`)}</div>
+      <div class="card"><h3>Daily sales</h3><div class="chart" id="dayChart"></div></div>
+      <h2 class="sec">By employee</h2>${table(['Employee', 'Sales', 'Total'], S.byEmployee.map((x) => [esc(x.key), x.count, fmtMoney(x.total)]))}
+      <h2 class="sec">By category</h2>${table(['Category', 'Items', 'Revenue'], S.byCategory.map((x) => [esc(x.key), x.count, fmtMoney(x.total)]))}
+      <h2 class="sec">By payment type</h2>${table(['Method', 'Sales', 'Total'], S.byMethod.map((x) => [esc(x.key), x.count, fmtMoney(x.total)]))}${S.linesWithoutCost ? `<p class="note">${S.linesWithoutCost} line(s) in this range have no cost recorded and are excluded from margin.</p>` : ''}
+      <p class="note">For money in and out by day (cash vs card, loans, redemptions) open the <a href="daily.html" style="color:var(--accent)">Report of the Day</a>.</p>`);
+    barChart($('#dayChart'), S.byDay.map((d) => ({ label: d.date.slice(5), value: d.total, sub: `${d.count} sale(s)` })), { fmt: fmtMoney, title: 'Daily sales' });
+    $('#rf').onchange = () => { if ($('#rf').value) { range.from = $('#rf').value; renderSales(); } }; $('#rt').onchange = () => { if ($('#rt').value) { range.to = $('#rt').value; renderSales(); } };
+  }
+  function renderCust() {
+    const C = customerInsights(state.customers, state.loans, state.sales, state.txs, D.today);
+    const flag = (c) => [c.flags.doNotBuy && '<span class="tag bad">do not buy</span>', c.flags.police && '<span class="tag bad">police</span>', c.flags.frequentDefaults && '<span class="tag bad">frequent defaults</span>', c.lapsing && '<span class="tag">lapsing</span>'].filter(Boolean).join(' ');
+    pane('cust', `<div class="bar"><input type="search" id="cq" placeholder="Search customers" style="max-width:300px"><select id="cf"><option value="">All</option><option value="good">Good customers (Silver/Gold)</option><option value="risk">Risk flags</option><option value="lapsing">Lapsing</option></select></div><div id="ctab"></div>`);
+    const draw = () => { const q = $('#cq').value.toLowerCase(), f = $('#cf').value;
+      const rows = C.filter((c) => (!q || c.name.toLowerCase().includes(q)) && (!f || (f === 'good' ? c.tier !== 'Standard' : f === 'risk' ? c.flags.doNotBuy || c.flags.police || c.flags.frequentDefaults : c.lapsing))).slice(0, 200);
+      $('#ctab').innerHTML = table(['Customer', 'Tier', 'Lifetime profit', 'Interest paid', 'Retail spend', 'Loans', 'Redemption', 'Avg loan', 'Last seen', 'Flags'], rows.map((c) => [esc(c.name), `<span class="tag ${c.tier === 'Gold' ? 'good' : ''}">${c.tier}</span>`, fmtMoney(c.lifetimeProfit), fmtMoney(c.interestPaid), fmtMoney(c.spend), c.loans, pct(c.redemptionRate), fmtMoney(c.avgLoan), c.lastSeen || '—', flag(c)]), 'No customers match.'); };
+    $('#cq').oninput = draw; $('#cf').onchange = draw; draw();
+  }
+  function renderEmp() {
+    const E = employeeScorecards({ loans: state.loans, items: state.items, sales: state.sales, txs: state.txs, today: D.today, hoursByEmail: state.hours });
+    pane('emp', `<p class="note">Every loan, buy and sale is credited to the employee who made it. Owner and manager view only.</p>
+      <h2 class="sec">Loans</h2>${table(['Employee', 'Loans', 'Loaned', 'Avg size', 'Redemption', 'Default', 'Interest earned', 'Still out'], E.cards.map((c) => [esc(c.employee), c.loans.count, fmtMoney(c.loans.principal), fmtMoney(c.loans.avgSize), pct(c.loans.redemptionRate), pct(c.loans.defaultRate), fmtMoney(c.loans.interestIncome), fmtMoney(c.loans.outstanding)]))}
+      <h2 class="sec">Buys: good buys vs lingering buys</h2>${table(['Employee', 'Buys', 'Spent', 'Profit', 'Margin', 'Sold', 'Still on floor', 'Avg days to sell', 'Avg floor age', 'Floor cost'], E.goodBuys.map((c) => [esc(c.employee), c.buys.count, fmtMoney(c.buys.spent), fmtMoney(c.buys.profit), pct(c.buys.marginPct), pct(c.buys.sellThrough), `${c.buys.onFloor} (${pct(c.buys.onFloorPct)})`, days(c.buys.avgDaysToSell), days(c.buys.avgFloorAge), fmtMoney(c.buys.floorCost)]), 'No buys yet.')}
+      <p class="note">Ranked by how much of what they bought has sold, then by speed. "Still on floor" is the share of their buys not yet sold.</p>
+      <h2 class="sec">Inventory from forfeited loans still on the floor</h2>${table(['Employee (loan issuer)', 'Items', 'Cost'], E.cards.filter((c) => c.forfeitedOnFloor.count).map((c) => [esc(c.employee), c.forfeitedOnFloor.count, fmtMoney(c.forfeitedOnFloor.cost)]), 'None.')}
+      <h2 class="sec">Sales rung up</h2>${table(['Employee', 'Sales', 'Total', 'Margin', 'Hours', 'Sales per hour'], E.cards.map((c) => [esc(c.employee), c.sales.count, fmtMoney(c.sales.total), fmtMoney(c.sales.margin), c.hours == null ? '—' : c.hours.toFixed(1), c.salesPerHour == null ? '—' : fmtMoney(c.salesPerHour)]))}
+      <p class="note">Hours come from the time clock (${range.from} to ${range.to}) once staff clock in with it.</p>`);
+  }
+  const sync = () => { const on = navigator.onLine; $('#status').textContent = on ? 'Online' : 'Offline'; $('#dot').classList.toggle('off', !on); }; addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@
 <body>
 
 <div id="gate" class="gate">
-  <form id="loginForm" class="card">
+  <form id="loginForm" class="signin">
     <img class="logo-big" src="img/logo.webp" alt="AZ Pawn of Salem">
     <div class="sub">Pawn &amp; Firearms Retail</div>
     <label class="field"><span>Email</span><input id="em" type="email" autocomplete="username" required></label>
@@ -93,7 +93,7 @@
   let role = null, uid = null;
 
   // ---- owner PIN gate ----
-  const MODS = [['Reports of the Day', 'daily.html'], ['Briefing', 'briefing.html'], ['Loans ledger', 'loans.html'], ['Customers', 'customers.html'], ['Inventory management', 'inventory.html'],
+  const MODS = [['Reports of the Day', 'daily.html'], ['Briefing', 'briefing.html'], ['Reports & insights', 'reports.html'], ['Loans ledger', 'loans.html'], ['Customers', 'customers.html'], ['Inventory management', 'inventory.html'],
     ['Firearms A&D book', 'firearms.html'], ['Messaging'], ['Reminders'], ['Cash management'], ['Settings', 'settings.html', true]];
   $('mods').innerHTML = MODS.map(([n, href]) => href
     ? `<a class="mod" href="${href}" data-owner="${MODS.find(m => m[0] === n)[2] ? 1 : ''}" style="text-decoration:none;color:inherit;cursor:pointer"><em style="color:var(--good)">Open</em><b>${n}</b><span>${n === 'Settings' ? 'Owner only: shop, loan terms, ticket, compliance' : 'Open this page'}</span></a>`
