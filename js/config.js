@@ -42,5 +42,15 @@ export const CONFIG = {
     require4473Image: false,       // require a photo/scan of the completed 4473
     redemptionNeedsTransfer: true, // pawned firearms returned to the customer go through the transfer flow. VERIFY (conservative default)
   },
+  // Business (not legal) defaults for the alert engine and markdown suggestions. Tunable; not VERIFY items.
+  alerts: { maturingDays: 5, agingThresholds: [30, 60, 90, 180, 365] },
+  markdown: [   // minDays = item age on the floor; pct = suggested markdown off the asking price
+    { minDays: 0, label: '0-30 days', action: 'Hold price', pct: 0 },
+    { minDays: 31, label: '31-60 days', action: 'Watch', pct: 0 },
+    { minDays: 61, label: '61-90 days', action: 'Consider a small markdown', pct: 5 },
+    { minDays: 91, label: '91-180 days', action: 'Recommend markdown', pct: 15 },
+    { minDays: 181, label: '181-365 days', action: 'Aggressive markdown', pct: 30 },
+    { minDays: 366, label: '365+ days', action: 'Dead stock: move or liquidate', pct: 50 },
+  ],
   roles: ['owner', 'manager', 'staff'],
 };

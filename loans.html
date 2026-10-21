@@ -80,7 +80,7 @@
 
   watchAuth((user, r) => { if (!user || !r) return location.replace('index.html'); role = r; refresh(); });
   async function refresh() {
-    try { all = (await listLoans()).map((l) => ({ ...l, s: summarize(l) })); render(); }
+    try { all = (await listLoans()).map((l) => ({ ...l, s: summarize(l) })); const u = new URLSearchParams(location.search); if (u.get('filter')) $('fs').value = u.get('filter'); render(); if (u.get('open') && !$('detail').dataset.did) { $('detail').dataset.did = 1; if (all.some((l) => l.id === u.get('open'))) open1(u.get('open')); } }
     catch { $('list').innerHTML = '<p class="empty">Could not load loans. Check your connection.</p>'; }
   }
   function render() {

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Briefing · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  main { max-width:1040px; } .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); }
+  .card { border:1px solid var(--line); border-radius:16px; padding:16px 18px; background:linear-gradient(160deg,var(--panel-2),var(--panel)); } .card h3 { margin:0 0 6px; font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); }
+  .big { font-size:1.8rem; font-weight:800; } .muted { color:var(--muted); font-size:.85rem; } .sec { margin:0; font-size:1.05rem; letter-spacing:.06em; }
+  .list { display:grid; gap:8px; margin-top:8px; } .row { display:flex; gap:12px; align-items:center; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); text-decoration:none; color:inherit; flex-wrap:wrap; }
+  a.row:hover { border-color:var(--accent); } .row .sp { flex:1; } .tag { font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px; } .tag.bad { color:var(--bad); }
+  .ok { color:var(--good); } [hidden] { display:none !important; } .actions { display:flex; gap:10px; flex-wrap:wrap; }
+  @media print { header, .actions { display:none !important; } body { background:#fff; color:#000; } .card, .row { background:#fff; border-color:#999; } }
+</style>
+</head>
+<body>
+<header><a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a><div class="wordmark" style="margin-left:6px">Briefing</div><div class="spacer"></div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div></header>
+<main id="page" hidden>
+  <div><h2 style="margin:0" id="title"></h2><p class="muted" style="margin:4px 0 0" id="sub"></p></div>
+  <div class="actions"><a class="ghost" style="text-decoration:none;padding:10px 14px;border:1px solid var(--line);border-radius:10px" href="daily.html">Report of the Day</a><a class="ghost" style="text-decoration:none;padding:10px 14px;border:1px solid var(--line);border-radius:10px" href="reports.html">Reports &amp; insights</a><button class="ghost" onclick="print()">Print</button></div>
+
+  <h3 class="sec">Money on the street</h3>
+  <div class="grid" id="money"></div>
+
+  <h3 class="sec">Today's cash</h3>
+  <div class="grid" id="cash"></div>
+
+  <h3 class="sec">Loans needing action</h3><div id="loans"></div>
+  <h3 class="sec">Inventory</h3><div id="inv"></div>
+  <h3 class="sec">Compliance</h3><div id="comp"></div>
+</main>
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { loadAlerts, listTransactions } from './js/insights-data.js';
+  import { dailyReport } from './js/daily-logic.js';
+  import { todayET } from './js/dates.js';
+  import { fmtMoney } from './js/item-logic.js';
+  import { suggestMarkdown, onFloor } from './js/inventory-logic.js';
+
+  const $ = (id) => document.getElementById(id), esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const card = (h, big, sub) => `<div class="card"><h3>${h}</h3><div class="big">${big}</div><div class="muted">${sub || ''}</div></div>`;
+  const group = (title, rows, empty) => `<div class="card" style="margin-bottom:12px"><h3>${title} <span class="tag">${rows.length}</span></h3>${rows.length ? `<div class="list">${rows.join('')}</div>` : `<div class="muted ok">${empty}</div>`}</div>`;
+  const lrow = (l, extra = '') => `<a class="row" href="loans.html?open=${l.id}"><b>#${l.ticketNumber} · ${esc(l.customerName)}</b><span class="muted">${esc(l.itemSummaries.map((i) => i.title).join(', '))}</span><span class="sp"></span>${extra}<b>${fmtMoney(l.principal)}</b></a>`;
+  const irow = (i, extra = '', href = 'inventory.html') => `<a class="row" href="${href}"><b>${esc(i.title)}</b><span class="muted">${esc(i.category)}${i.serial ? ' · SN ' + esc(i.serial) : ''}</span><span class="sp"></span>${extra}</a>`;
+
+  watchAuth(async (user, role) => {
+    if (!user || !role) return location.replace('index.html');
+    if (role === 'staff') return location.replace('index.html');
+    const today = todayET(); $('title').textContent = 'Morning briefing'; $('sub').textContent = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    $('page').hidden = false;
+    try {
+      const { alerts: a, items } = await loadAlerts(today);
+      $('money').innerHTML = card('Open loans', a.money.openLoans) + card('Principal out', fmtMoney(a.money.principalOut), 'cash on the street') + card('Interest owed', fmtMoney(a.money.interestOwed), 'if every open loan redeemed today') +
+        card('Total payoff', fmtMoney(a.money.principalOut + a.money.interestOwed));
+      $('loans').innerHTML = group('Defaulted today', a.defaultedToday.map((l) => lrow(l)), 'None today.') + group('Ready to forfeit (move to inventory)', a.readyToForfeit.map((l) => lrow(l, '<span class="tag bad">Forfeit</span>')), 'Nothing waiting.') +
+        group(`Maturing within ${5} days`, a.maturingSoon.map((x) => lrow(x.loan, `<span class="tag">${x.daysLeft === 0 ? 'today' : x.daysLeft + ' day' + (x.daysLeft > 1 ? 's' : '')}</span>`)), 'None coming up.') + group('Overdue (past maturity, before forfeiture)', a.overdue.map((l) => lrow(l)), 'None overdue.');
+      const md = onFloor(items).map((i) => ({ i, m: suggestMarkdown(i, today) })).filter((x) => x.m);
+      $('inv').innerHTML = group('Hold ends today (now sellable)', a.holdEndingToday.map((i) => irow(i)), 'None today.') + group('Hold ended: release to for-sale', a.holdEnded.map((i) => irow(i, '<span class="tag">Release</span>')), 'Nothing waiting.') +
+        group('On hold with no hold date (set the hold period in Settings)', a.holdNotSet.map((i) => irow(i)), 'None.') + group('Aging thresholds hit today', a.agingHits.map((x) => irow(x.item, `<span class="tag">${x.threshold} days</span>`)), 'None today.') +
+        group('Markdown suggestions', md.slice(0, 15).map(({ i, m }) => irow(i, `<span class="tag ${m.belowCost ? 'bad' : ''}">${m.pct}% off</span><b>${fmtMoney(m.from)} → ${fmtMoney(m.to)}${m.belowCost ? ' (below cost)' : ''}</b>`)), 'No markdowns suggested.');
+      $('comp').innerHTML = group('Firearms needing an A&D entry', a.needsAd.map((i) => irow(i, '', 'firearms.html')), 'All firearms have A&D entries.') + group('Police reports pending', a.policePending ? [`<a class="row" href="compliance.html"><b>${a.policePending} transaction(s) awaiting police report</b></a>`] : [], 'Nothing pending.');
+    } catch (e) { console.error(e); $('loans').innerHTML = '<p class="muted">Could not load. Check your connection.</p>'; }
+    try { const r = dailyReport(await listTransactions(today, today), today);
+      $('cash').innerHTML = card('Sales', fmtMoney(r.sales.amount), `${r.sales.count} sale(s)`) + card('Cash in', fmtMoney(r.cash.in), 'sales, redemptions, renewals') + card('Cash out', fmtMoney(r.cash.out), 'loans, buys, expenses') + card('Net cash', fmtMoney(r.cash.net), 'so far today'); }
+    catch { $('cash').innerHTML = '<p class="muted">Cash figures are not available.</p>'; }
+  });
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); }; addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

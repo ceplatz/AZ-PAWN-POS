@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Report of the Day · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  input { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:11px 14px; font:inherit; } main { max-width:960px; }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); } .card { border:1px solid var(--line); border-radius:16px; padding:16px 18px; background:linear-gradient(160deg,var(--panel-2),var(--panel)); }
+  .card h3 { margin:0 0 6px; font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); } .big { font-size:1.6rem; font-weight:800; } .muted { color:var(--muted); font-size:.85rem; }
+  table { width:100%; border-collapse:collapse; } th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); } th { color:var(--muted); font-weight:500; font-size:.8rem; } td.n, th.n { text-align:right; }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } [hidden] { display:none !important; }
+  @media print { header, .bar { display:none !important; } body { background:#fff; color:#000; } .card { background:#fff; border-color:#999; } }
+</style>
+</head>
+<body>
+<header><a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a><div class="wordmark" style="margin-left:6px">Report of the Day</div><div class="spacer"></div><div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div></header>
+<main id="page" hidden>
+  <div class="bar"><input type="date" id="d"><button class="ghost" id="prev">&larr; Prev</button><button class="ghost" id="next">Next &rarr;</button><button class="ghost" onclick="print()">Print</button></div>
+  <h2 style="margin:0" id="title"></h2>
+  <div class="grid" id="top"></div>
+  <div class="card"><h3>Loans &amp; interest</h3><table id="loans"></table></div>
+  <div class="card"><h3>Cash vs card</h3><table id="flow"></table></div>
+  <div class="card"><h3>By employee</h3><table id="emp"></table></div>
+  <p class="muted" id="note"></p>
+</main>
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { listTransactions } from './js/insights-data.js';
+  import { dailyReport } from './js/daily-logic.js';
+  import { todayET } from './js/dates.js';
+  import { fmtMoney } from './js/item-logic.js';
+  import { CONFIG } from './js/config.js';
+  const $ = (id) => document.getElementById(id), esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const card = (h, big, sub) => `<div class="card"><h3>${h}</h3><div class="big">${big}</div><div class="muted">${sub || ''}</div></div>`;
+  const shift = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  async function run(date) {
+    $('d').value = date; $('title').textContent = `${CONFIG.shop.name}: ${new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+    try { const r = dailyReport(await listTransactions(date, date), date);
+      $('top').innerHTML = card('Sales', fmtMoney(r.sales.amount), `${r.sales.count} sale(s) · tax ${fmtMoney(r.sales.tax)}`) + card('Bought', fmtMoney(r.buys.amount), `${r.buys.count} purchase(s)`) + card('Loans issued', fmtMoney(r.loansOut.amount), `${r.loansOut.count} loan(s)`) +
+        card('Redemptions', fmtMoney(r.redemptions.amount), `${r.redemptions.count} loan(s)`) + card('Interest income', fmtMoney(r.interestIncome), 'redemption + renewal interest') + card('Net cash', fmtMoney(r.cash.net), 'cash in minus cash out');
+      $('loans').innerHTML = `<tr><th>Item</th><th class="n">Count</th><th class="n">Amount</th></tr><tr><td>Loans issued</td><td class="n">${r.loansOut.count}</td><td class="n">${fmtMoney(r.loansOut.amount)}</td></tr><tr><td>Redemptions (principal + interest)</td><td class="n">${r.redemptions.count}</td><td class="n">${fmtMoney(r.redemptions.amount)}</td></tr><tr><td>&nbsp;&nbsp;of which principal</td><td></td><td class="n">${fmtMoney(r.redemptions.principal)}</td></tr><tr><td>&nbsp;&nbsp;of which interest</td><td></td><td class="n">${fmtMoney(r.redemptions.interest)}</td></tr><tr><td>Renewals (interest collected)</td><td class="n">${r.renewals.count}</td><td class="n">${fmtMoney(r.renewals.amount)}</td></tr>`;
+      $('flow').innerHTML = `<tr><th></th><th class="n">In</th><th class="n">Out</th><th class="n">Net</th></tr>` + ['cash', 'card'].map((m) => `<tr><td>${m === 'cash' ? 'Cash' : 'Card / check'}</td><td class="n">${fmtMoney(r[m].in)}</td><td class="n">${fmtMoney(r[m].out)}</td><td class="n">${fmtMoney(r[m].net)}</td></tr>`).join('');
+      const E = Object.entries(r.byEmployee); $('emp').innerHTML = E.length ? `<tr><th>Employee</th><th class="n">Sales</th><th class="n">Buys</th><th class="n">Loans out</th><th class="n">Redemptions</th></tr>` + E.map(([e, v]) => `<tr><td>${esc(e)}</td><td class="n">${fmtMoney(v.sales.amount)} (${v.sales.count})</td><td class="n">${fmtMoney(v.buys.amount)} (${v.buys.count})</td><td class="n">${fmtMoney(v.loansOut.amount)} (${v.loansOut.count})</td><td class="n">${fmtMoney(v.redemptions.amount)} (${v.redemptions.count})</td></tr>`).join('') : '<tr><td class="muted">No activity.</td></tr>';
+      $('note').textContent = `${r.transactions} transaction(s). Cash drawer counts and expenses appear once recorded in Cash management.`;
+    } catch (e) { console.error(e); $('top').innerHTML = '<p class="muted">Could not load this day. Check your connection.</p>'; }
+  }
+  watchAuth((user, role) => { if (!user || !role || role === 'staff') return location.replace('index.html'); $('page').hidden = false; const d0 = new URLSearchParams(location.search).get('d') || todayET(); run(d0);
+    $('d').onchange = () => $('d').value && run($('d').value); $('prev').onclick = () => run(shift($('d').value, -1)); $('next').onclick = () => run(shift($('d').value, 1)); });
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); }; addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

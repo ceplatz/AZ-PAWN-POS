@@ -37,6 +37,8 @@
     <p id="today"></p>
   </section>
 
+  <section id="chips" style="display:flex;gap:10px;flex-wrap:wrap" hidden></section>
+
   <section class="grid">
     <button class="tile t-pawn" data-href="pawn.html">
       <div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.500 9.200c-.5-.8-1.400-1.200-2.500-1.200-1.500 0-2.500.8-2.500 2s1 1.700 2.500 2 2.500.8 2.500 2-1 2-2.500 2c-1.100 0-2-.4-2.500-1.200M12 6.500V8M12 16v1.500"/></svg></div>
@@ -91,7 +93,7 @@
   let role = null, uid = null;
 
   // ---- owner PIN gate ----
-  const MODS = [['Reports of the Day'], ['Briefing'], ['Loans ledger', 'loans.html'], ['Customers', 'customers.html'], ['Inventory management', 'inventory.html'],
+  const MODS = [['Reports of the Day', 'daily.html'], ['Briefing', 'briefing.html'], ['Loans ledger', 'loans.html'], ['Customers', 'customers.html'], ['Inventory management', 'inventory.html'],
     ['Firearms A&D book', 'firearms.html'], ['Messaging'], ['Reminders'], ['Cash management'], ['Settings', 'settings.html', true]];
   $('mods').innerHTML = MODS.map(([n, href]) => href
     ? `<a class="mod" href="${href}" data-owner="${MODS.find(m => m[0] === n)[2] ? 1 : ''}" style="text-decoration:none;color:inherit;cursor:pointer"><em style="color:var(--good)">Open</em><b>${n}</b><span>${n === 'Settings' ? 'Owner only: shop, loan terms, ticket, compliance' : 'Open this page'}</span></a>`
@@ -121,8 +123,16 @@
     catch { $('err').textContent = 'Sign-in failed. Check your email and password.'; }
   };
 
+  async function chips() {
+    try {
+      const { loadAlerts } = await import('./js/insights-data.js'), { alerts: a } = await loadAlerts();
+      const c = [[a.readyToForfeit.length, 'ready to forfeit', 'loans.html?filter=defaulted', 1], [a.defaultedToday.length, 'defaulted today', 'loans.html?filter=defaulted', 1], [a.maturingSoon.length, 'loans maturing soon', 'loans.html?filter=maturing-soon'],
+        [a.overdue.length, 'overdue', 'loans.html?filter=overdue'], [a.holdEndingToday.length + a.holdEnded.length, 'items past their hold', 'inventory.html'], [a.needsAd.length, 'firearms need A&D entry', 'firearms.html', 1]].filter((x) => x[0]);
+      $('chips').innerHTML = c.map(([n, t, href, bad]) => `<a href="${href}" class="pill" style="text-decoration:none;${bad ? 'border-color:var(--bad);color:var(--text)' : ''}"><b style="color:${bad ? 'var(--bad)' : 'var(--accent)'}">${n}</b>&nbsp;${t}</a>`).join(''); $('chips').hidden = !c.length;
+    } catch { /* alerts are optional */ }
+  }
   watchAuth((user, r) => {
-    role = r; uid = user ? user.uid : null;
+    role = r; uid = user ? user.uid : null; if (user && r) chips();
     if (!user) lock();
     const ok = !!user && !!r;
     $('gate').hidden = ok;
