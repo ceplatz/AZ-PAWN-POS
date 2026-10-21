@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Loans · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style id="tcss"></style>
+<style>
+  input, select { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:13px 14px; font:inherit; transition:.15s; }
+  input:focus, select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  .bar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; } .bar input[type=search] { flex:1; min-width:200px; }
+  .list { display:grid; gap:10px; }
+  .row { display:flex; align-items:center; gap:14px; padding:14px 18px; border:1px solid var(--line); border-radius:14px; background:linear-gradient(160deg,var(--panel-2),var(--panel)); cursor:pointer; flex-wrap:wrap; }
+  .row:hover, .row:focus-visible { border-color:var(--accent); outline:none; } .row b { font-size:1.02rem; } .row small { color:var(--muted); display:block; } .row .sp { flex:1; }
+  .tag { font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px; white-space:nowrap; }
+  .tag.bad { color:var(--bad); border-color:var(--bad); } .tag.good { color:var(--good); } .tag.mute { color:var(--muted); }
+  .empty { color:var(--muted); text-align:center; padding:40px 0; }
+  .sheet { position:fixed; inset:0; z-index:15; overflow:auto; background:var(--bg); } .sheet-in { max-width:860px; margin:0 auto; padding:18px 20px 60px; }
+  .sheet-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; } .sheet-top h2 { margin:0; flex:1; }
+  fieldset { border:1px solid var(--line); border-radius:16px; padding:18px; margin:0 0 16px; background:var(--panel); }
+  legend { padding:0 8px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+  .g { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); } .g span { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .big { font-size:1.5rem; font-weight:800; color:var(--accent); }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+  .msg { min-height:1.4em; margin:10px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); }
+  ul.h { margin:0; padding-left:18px; color:var(--muted); } [hidden] { display:none !important; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--accent); padding:12px 20px; border-radius:12px; z-index:30; }
+</style>
+</head>
+<body>
+<header>
+  <a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a>
+  <div class="wordmark" style="margin-left:6px">Loans</div><div class="spacer"></div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div>
+</header>
+<main>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Search ticket #, customer, or item" autocomplete="off">
+    <select id="fs"><option value="open">Open loans</option><option value="">All</option><option value="maturing-soon">Maturing soon</option><option value="overdue">Overdue</option><option value="defaulted">Ready to forfeit</option><option value="redeemed">Redeemed</option><option value="forfeited">Forfeited</option></select>
+    <a class="gold" href="pawn.html" style="text-decoration:none">+ New loan</a>
+  </div>
+  <div class="list" id="list"><p class="empty">Loading…</p></div>
+</main>
+
+<div class="sheet" id="detail" hidden><div class="sheet-in">
+  <div class="sheet-top"><h2 id="dTitle"></h2><button class="ghost" id="dClose">Close</button></div>
+  <p id="dTags"></p>
+  <fieldset><legend>Today</legend><div class="g">
+    <div><span>Payoff today</span><div class="big" id="dPayoff"></div></div><div><span>Principal</span><b id="dPrin"></b></div>
+    <div><span>Interest owed</span><b id="dInt"></b></div><div><span>Matures</span><b id="dMat"></b></div><div><span>Forfeited after</span><b id="dForf"></b></div></div></fieldset>
+  <fieldset><legend>Collateral</legend><div id="dItems"></div></fieldset>
+  <fieldset id="actBox"><legend>Counter</legend>
+    <div class="actions"><label style="color:var(--muted)">Paid by <select id="method"><option value="cash">Cash</option><option value="card">Card / check</option></select></label></div>
+    <div class="actions"><button class="gold" id="redeemBtn">Redeem (pay off)</button><button class="ghost" id="renewBtn">Renew (pay interest)</button><button class="ghost" id="forfBtn" hidden style="border-color:var(--bad);color:var(--bad)">Forfeit to inventory</button></div>
+    <p class="msg" id="aMsg" role="alert"></p></fieldset>
+  <div class="actions" style="margin-bottom:14px"><button class="ghost" id="printBtn">Print ticket</button></div>
+  <fieldset><legend>History</legend><ul class="h" id="dHist"></ul></fieldset>
+</div></div>
+<div id="printArea"></div>
+
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { getCustomer } from './js/customers.js';
+  import { listLoans, redeemLoan, renewLoan, forfeitLoan } from './js/loans.js';
+  import { summarize, STATUS_LABEL } from './js/loans-logic.js';
+  import { fmtMoney } from './js/item-logic.js';
+  import { ticketHtml, TICKET_CSS } from './js/ticket.js';
+
+  const $ = (id) => document.getElementById(id);
+  $('tcss').textContent = TICKET_CSS;
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const say = (t, k = '') => { $('aMsg').textContent = t; $('aMsg').className = 'msg ' + k; };
+  const toast = (t) => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); };
+  const kind = (s) => (['overdue', 'defaulted'].includes(s) ? 'bad' : s === 'redeemed' ? 'good' : s === 'forfeited' ? 'mute' : '');
+  const OPEN = ['active', 'maturing-soon', 'overdue', 'defaulted'];
+  let all = [], role = null, cur = null;
+
+  watchAuth((user, r) => { if (!user || !r) return location.replace('index.html'); role = r; refresh(); });
+  async function refresh() {
+    try { all = (await listLoans()).map((l) => ({ ...l, s: summarize(l) })); render(); }
+    catch { $('list').innerHTML = '<p class="empty">Could not load loans. Check your connection.</p>'; }
+  }
+  function render() {
+    const q = $('q').value.trim().toLowerCase(), f = $('fs').value;
+    const rows = all.filter((l) => (f === '' || (f === 'open' ? OPEN.includes(l.s.status) : l.s.status === f))
+      && (!q || String(l.ticketNumber) === q.replace('#', '') || l.customerName.toLowerCase().includes(q) || l.itemSummaries.some((i) => `${i.title} ${i.serial}`.toLowerCase().includes(q))));
+    if (f === 'open') rows.sort((a, b) => a.s.maturity.localeCompare(b.s.maturity));
+    $('list').innerHTML = rows.length ? rows.map((l) => `<div class="row" data-id="${l.id}" tabindex="0"><div><b>#${l.ticketNumber} · ${esc(l.customerName)}</b>
+      <small>${esc(l.itemSummaries.map((i) => i.title).join(', '))}</small></div><div class="sp"></div>
+      <div style="text-align:right"><b>${fmtMoney(OPEN.includes(l.s.status) ? l.s.payoff : l.principal)}</b><small>${OPEN.includes(l.s.status) ? 'payoff · matures ' + l.s.maturity : 'principal'}</small></div>
+      <span class="tag ${kind(l.s.status)}">${STATUS_LABEL[l.s.status]}</span></div>`).join('')
+      : `<p class="empty">${all.length ? 'No loans match.' : 'No loans yet.'}</p>`;
+  }
+  $('q').oninput = render; $('fs').onchange = render;
+  $('list').onclick = (e) => { const r = e.target.closest('.row'); if (r) open1(r.dataset.id); };
+  $('list').onkeydown = (e) => { if (e.key === 'Enter') { const r = e.target.closest('.row'); if (r) open1(r.dataset.id); } };
+  $('dClose').onclick = () => { $('detail').hidden = true; };
+
+  function open1(id) {
+    cur = all.find((l) => l.id === id); const l = cur, s = l.s, isOpen = OPEN.includes(s.status);
+    $('detail').hidden = false; $('dTitle').textContent = `#${l.ticketNumber} · ${l.customerName}`;
+    $('dTags').innerHTML = `<span class="tag ${kind(s.status)}">${STATUS_LABEL[s.status]}</span>${l.renewals ? ` <span class="tag">Renewed ${l.renewals}×</span>` : ''}`;
+    $('dPayoff').textContent = fmtMoney(isOpen ? s.payoff : 0); $('dPrin').textContent = fmtMoney(l.principal); $('dInt').textContent = fmtMoney(isOpen ? s.interest : 0);
+    $('dMat').textContent = s.maturity; $('dForf').textContent = s.forfeitAfter;
+    $('dItems').innerHTML = l.itemSummaries.map((i) => `<div class="row" style="cursor:default"><b>${esc(i.title)}</b><span class="sp"></span><small>${esc(i.category)}${i.serial ? ' · SN ' + esc(i.serial) : ''}</small></div>`).join('');
+    $('dHist').innerHTML = [`Issued for ${fmtMoney(l.principal)} by ${esc(l.createdByEmail || '')}`, ...(l.history || []).map((h) => `${esc(h.date)}: ${esc(h.type)} ${h.amount ? fmtMoney(h.amount) : ''} (${esc(h.by || '')})`)].map((x) => `<li>${x}</li>`).join('');
+    $('actBox').hidden = !isOpen; say('');
+    $('redeemBtn').disabled = s.status === 'defaulted'; $('renewBtn').disabled = s.status === 'defaulted' || s.interest <= 0;
+    $('redeemBtn').textContent = `Redeem: collect ${fmtMoney(s.payoff)}`; $('renewBtn').textContent = s.interest > 0 ? `Renew: collect ${fmtMoney(s.interest)} interest` : 'Renew (no interest due yet)';
+    $('forfBtn').hidden = !(s.status === 'defaulted' && (role === 'owner' || role === 'manager'));
+    if (s.status === 'defaulted') say(role === 'staff' ? 'Past forfeiture. A manager must move this to inventory.' : 'Past forfeiture. Forfeit it to move the items to inventory.', 'warn');
+  }
+  const run = (btn, fn, done) => async () => {
+    btn.disabled = true; say('Working…');
+    try { const r = await fn(); await refresh(); toast(done(r)); $('detail').hidden = true; }
+    catch (e) { say(e.message && !/permission|network|offline|unavailable/i.test(e.message) ? e.message : 'Could not complete that. Check your connection and try again.', 'bad'); btn.disabled = false; }
+  };
+  $('redeemBtn').onclick = () => { if (confirm(`Collect ${fmtMoney(cur.s.payoff)} and release the collateral?`)) run($('redeemBtn'), () => redeemLoan(cur, { method: $('method').value }), (r) => `Redeemed: collected ${fmtMoney(r.amount)}`)(); };
+  $('renewBtn').onclick = () => { if (confirm(`Collect ${fmtMoney(cur.s.interest)} interest and restart the loan term?`)) run($('renewBtn'), () => renewLoan(cur, { method: $('method').value }), (r) => `Renewed: collected ${fmtMoney(r.amount)}`)(); };
+  $('forfBtn').onclick = () => { if (confirm('Forfeit this loan and move its items into inventory? This cannot be undone.')) run($('forfBtn'), () => forfeitLoan(cur), () => 'Moved to inventory (on hold)')(); };
+  $('printBtn').onclick = async () => {
+    try { const c = await getCustomer(cur.customerId); $('printArea').innerHTML = ticketHtml({ loan: cur, customer: c, ids: c.ids }); print(); }
+    catch { say('Could not load the customer to print the ticket.', 'bad'); }
+  };
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

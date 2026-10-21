@@ -4,7 +4,7 @@ import { CONFIG } from './config.js';
 export const CATEGORIES = ['Firearm', 'Jewelry', 'Electronics', 'Tools', 'Musical', 'Outdoor / Sporting', 'Collectibles', 'Other'];
 export const CONDITIONS = ['New', 'Like new', 'Good', 'Fair', 'Poor'];
 export const SOURCES = { bought: 'Bought', 'pawn-collateral': 'Pawn collateral', consignment: 'Consignment', forfeited: 'Forfeited' };
-export const STATUSES = { 'collateral-active': 'Collateral', 'on-hold': 'On hold', 'for-sale': 'For sale', 'on-layaway': 'Layaway', sold: 'Sold', scrapped: 'Scrapped' };
+export const STATUSES = { 'collateral-active': 'Collateral', 'on-hold': 'On hold', 'for-sale': 'For sale', 'on-layaway': 'Layaway', sold: 'Sold', released: 'Returned to customer', scrapped: 'Scrapped' };
 /** These categories must carry a serial number (stolen-goods matching / firearm records). */
 export const needsSerial = (cat) => ['Firearm', 'Electronics'].includes(cat);
 

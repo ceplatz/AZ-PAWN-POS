@@ -68,7 +68,7 @@
   .ico svg { width:26px; height:26px; stroke:var(--tint, var(--accent)); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .tile h3 { margin:0; font-size:1.55rem; letter-spacing:.1em; font-weight:800; position:relative; z-index:1; }
   .tile p { margin:4px 0 0; color:var(--muted); font-size:.92rem; position:relative; z-index:1; }
-  .t-pawn { --tint:#f5b52e; } .t-buy { --tint:#3fb6d0; } .t-sell { --tint:#ef6a2e; } .t-inv { --tint:#e0463c; } .t-cust { --tint:#fdf3d6; }
+  .t-pawn { --tint:#f5b52e; } .t-buy { --tint:#3fb6d0; } .t-sell { --tint:#ef6a2e; } .t-inv { --tint:#e0463c; } .t-cust { --tint:#fdf3d6; } .t-loan { --tint:#93c5fd; }
 
   .owner-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
     padding:16px 20px; border:1px solid var(--line); border-radius:16px; background:var(--panel); }

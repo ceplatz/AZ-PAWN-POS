@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>New pawn loan · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style id="tcss"></style>
+<style>
+  input, select, textarea { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:13px 14px; font:inherit; width:100%; transition:.15s; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  main { max-width:860px; } fieldset { border:1px solid var(--line); border-radius:16px; padding:18px; margin:0; background:var(--panel); }
+  legend { padding:0 8px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+  .g { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+  label span { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+  .res { display:grid; gap:8px; margin-top:10px; max-height:240px; overflow:auto; }
+  .row { display:flex; align-items:center; gap:12px; padding:12px 16px; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); cursor:pointer; } .row:hover { border-color:var(--accent); }
+  .row .sp { flex:1; } small, .note { color:var(--muted); font-size:.85rem; } .tag { font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px; }
+  .photos { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); margin-bottom:10px; }
+  .ph { border:1px solid var(--line); border-radius:12px; padding:6px; } .ph img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; }
+  .ph div { display:flex; gap:6px; margin-top:6px; } .ph button { flex:1; padding:5px; font-size:.8rem; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .msg { min-height:1.4em; margin:10px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); }
+  .box { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--panel-2); } .terms { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); margin-top:12px; }
+  .terms b { display:block; font-size:1.1rem; } .terms span { font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  #done .ticket { margin:14px auto; } [hidden] { display:none !important; }
+  dialog.cam { border:0; background:#000; padding:0; width:min(96vw,900px); border-radius:18px; } .cam-in { padding:14px; } .cam-in h3 { margin:0 0 10px; }
+  .cam video { width:100%; max-height:70vh; background:#000; border-radius:12px; } .cam-msg { color:var(--muted); min-height:1.3em; } .cam-bar { display:flex; justify-content:space-between; gap:10px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a>
+  <div class="wordmark" style="margin-left:6px">New pawn loan</div><div class="spacer"></div>
+  <a class="ghost" href="loans.html" style="text-decoration:none">Loans</a>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div>
+</header>
+<main id="flow">
+  <fieldset><legend>1. Customer</legend>
+    <div id="picked" hidden></div>
+    <div id="finder"><input id="q" type="search" placeholder="Search name, phone, or last 4 of ID" autocomplete="off"><div class="res" id="res"></div>
+      <div class="actions"><a class="ghost" href="customers.html" style="text-decoration:none;padding:10px 14px;border:1px solid var(--line);border-radius:10px">+ New customer (opens Customers)</a></div></div>
+    <p class="msg" id="custMsg"></p></fieldset>
+
+  <fieldset><legend>2. Collateral</legend>
+    <div id="itemList" class="res" style="max-height:none"></div>
+    <details id="addBox" open style="margin-top:10px"><summary style="cursor:pointer;color:var(--accent)">Add an item</summary>
+      <div class="photos" id="photos" style="margin-top:12px"></div>
+      <div class="actions" style="margin:0 0 12px"><button type="button" class="gold" id="addPhoto">Take photo</button><button type="button" class="ghost" id="filePhoto">Upload from device</button><input type="file" id="file" accept="image/*" multiple hidden></div>
+      <form id="iform" novalidate><div class="g">
+        <label><span>Title *</span><input name="title" autocomplete="off"></label>
+        <label><span>Category *</span><select name="category"></select></label>
+        <label><span>Brand</span><input name="brand" autocomplete="off"></label>
+        <label><span>Model</span><input name="model" autocomplete="off"></label>
+        <label><span>Serial # <i id="serReq"></i></span><input name="serial" autocomplete="off"></label>
+        <label><span>Condition</span><select name="condition"></select></label>
+        <label><span>Est. resale value $</span><input name="est" inputmode="decimal" placeholder="0.00"></label>
+      </div><label style="display:block;margin-top:12px"><span>Notes</span><textarea name="notes" rows="2"></textarea></label>
+      <p class="msg warn" id="fireMsg" hidden>Firearm collateral: the A&amp;D book and Form 4473 handling arrive in a later build step. Record the serial number accurately.</p>
+      <div class="actions"><button class="gold" type="submit">Add to loan</button></div><p class="msg" id="itemMsg"></p></form>
+    </details></fieldset>
+
+  <fieldset><legend>3. Loan</legend><div class="g">
+    <label><span>Amount to loan $ *</span><input id="principal" inputmode="decimal" placeholder="0.00"></label>
+    <label><span>Paid out by</span><select id="method"><option value="cash">Cash</option><option value="card">Card / check</option></select></label></div>
+    <div class="terms box" id="terms"></div>
+    <p class="note">Interest rate and term come from Settings and are marked VERIFY until the owner and counsel confirm them. Each loan keeps the terms it was issued under.</p></fieldset>
+
+  <button class="gold" id="issue" style="padding:16px">Issue loan and print ticket</button><p class="msg" id="issueMsg" role="alert"></p>
+</main>
+
+<section id="done" hidden style="max-width:860px;margin:0 auto;padding:20px">
+  <p class="msg good" id="doneMsg" style="font-size:1.1rem"></p>
+  <div class="actions"><button class="gold" id="printBtn">Print ticket</button><a class="ghost" href="pawn.html" style="text-decoration:none;padding:12px 16px;border:1px solid var(--line);border-radius:10px">New loan</a><a class="ghost" href="loans.html" style="text-decoration:none;padding:12px 16px;border:1px solid var(--line);border-radius:10px">Loans ledger</a></div>
+  <div id="preview"></div>
+</section>
+<div id="printArea"></div>
+
+<script type="module">
+  import { watchAuth, auth } from './js/firebase.js';
+  import { photoPicker } from './js/photo-picker.js';
+  import { listCustomers, getCustomer, ageOn } from './js/customers.js';
+  import { CATEGORIES, CONDITIONS, needsSerial, parseMoney, fmtMoney } from './js/item-logic.js';
+  import { createLoan } from './js/loans.js';
+  import { previewTerms, todayET } from './js/loans-logic.js';
+  import { ticketHtml, TICKET_CSS } from './js/ticket.js';
+  import { CONFIG } from './js/config.js';
+
+  const $ = (id) => document.getElementById(id), iform = $('iform'), F = (n) => iform.elements[n];
+  $('tcss').textContent = TICKET_CSS;
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const opts = (a) => a.map((v) => `<option>${esc(v)}</option>`).join('');
+  const say = (el, t, k = '') => { $(el).textContent = t; $(el).className = 'msg ' + k; };
+  F('category').innerHTML = opts(CATEGORIES); F('condition').innerHTML = opts(CONDITIONS);
+  let people = [], cust = null, items = [];
+  const picker = photoPicker({ grid: $('photos'), addBtn: $('addPhoto'), fileBtn: $('filePhoto'), fileInput: $('file'), onError: (m) => say('itemMsg', m, 'bad') });
+
+  watchAuth(async (user, role) => {
+    if (!user || !role) return location.replace('index.html');
+    try { people = await listCustomers(); } catch { say('custMsg', 'Could not load customers. Check your connection.', 'bad'); }
+  });
+
+  // ---- 1. customer ----
+  $('q').oninput = () => {
+    const q = $('q').value.trim().toLowerCase(), d = q.replace(/\D/g, '');
+    const rows = q ? people.filter((c) => `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) || c.lastName.toLowerCase().startsWith(q) || (d && (c.phone || '').replace(/\D/g, '').includes(d)) || c.idLast4?.toLowerCase() === q).slice(0, 12) : [];
+    $('res').innerHTML = rows.map((c) => `<div class="row" data-id="${c.id}"><b>${esc(c.lastName)}, ${esc(c.firstName)}</b><span class="sp"></span><small>${esc(c.phone || '')} · ID …${esc(c.idLast4)}</small></div>`).join('') || (q ? '<p class="note">No match. Add them under Customers first.</p>' : '');
+  };
+  $('res').onclick = async (e) => {
+    const r = e.target.closest('.row'); if (!r) return;
+    try { cust = await getCustomer(r.dataset.id); } catch { return say('custMsg', 'Could not load that customer.', 'bad'); }
+    $('finder').hidden = true; $('picked').hidden = false;
+    $('picked').innerHTML = `<div class="box"><b>${esc(cust.firstName)} ${esc(cust.lastName)}</b> <span class="tag">Age ${ageOn(cust.dob) ?? '?'}</span><br><small>${esc(cust.phone || 'no phone')} · ${esc(cust.address?.city || '')} · ${esc(cust.ids.idType || '')} ${esc(cust.ids.idNumber || '')}</small>
+      <div class="actions"><button class="ghost" id="chg" type="button">Change customer</button></div></div>`;
+    $('chg').onclick = () => { cust = null; $('finder').hidden = false; $('picked').hidden = true; say('custMsg', ''); };
+    const expired = cust.ids.idExpiry && cust.ids.idExpiry < todayET();
+    if (cust.flags?.doNotBuy) say('custMsg', 'DO NOT BUY flag on this customer. Do not make a loan; see the owner.', 'bad');
+    else if (cust.flags?.police) say('custMsg', 'Police flag on this customer. Notify the owner before continuing.', 'warn');
+    else if (expired) say('custMsg', 'This customer\'s ID is EXPIRED. Get a current ID before issuing a loan.', 'warn');
+    else say('custMsg', '');
+  };
+
+  // ---- 2. collateral ----
+  const cat = () => { $('serReq').textContent = needsSerial(F('category').value) ? '*' : ''; $('fireMsg').hidden = F('category').value !== 'Firearm'; };
+  F('category').onchange = cat; cat();
+  function paintItems() {
+    $('itemList').innerHTML = items.map((it, i) => `<div class="row" style="cursor:default"><b>${esc(it.f.title)}</b><span class="sp"></span><small>${esc(it.f.category)}${it.f.serial ? ' · SN ' + esc(it.f.serial) : ''} · ${it.blobs.length} photo${it.blobs.length === 1 ? '' : 's'}</small><button class="ghost" data-rm="${i}" type="button">Remove</button></div>`).join('');
+    $('addBox').open = items.length === 0;
+  }
+  $('itemList').onclick = (e) => { if (e.target.dataset.rm != null) { items.splice(+e.target.dataset.rm, 1); paintItems(); } };
+  iform.onsubmit = (e) => {
+    e.preventDefault(); const v = Object.fromEntries(new FormData(iform).entries()); v.title = v.title.trim();
+    const est = v.est.trim() ? parseMoney(v.est) : null;
+    if (!v.title) return say('itemMsg', 'Title is required.', 'bad');
+    if (v.est.trim() && est === null) return say('itemMsg', 'Estimated value is not a valid amount.', 'bad');
+    if (needsSerial(v.category) && !v.serial.trim()) return say('itemMsg', 'A serial number is required for this category.', 'bad');
+    items.push({ f: { ...v, estValue: est }, blobs: [...picker.blobs] });
+    iform.reset(); picker.clear(); cat(); say('itemMsg', ''); paintItems();
+  };
+
+  // ---- 3. loan terms preview ----
+  function terms() {
+    const p = parseMoney($('principal').value);
+    if (!p) { $('terms').innerHTML = '<span>Enter an amount to see the terms.</span>'; return null; }
+    const t = previewTerms(p), c = CONFIG.loan;
+    $('terms').innerHTML = [['Interest', `${(c.monthlyRate * 100).toFixed(2).replace(/\.00$/, '')}% per month`], ['Matures', t.maturity], ['Forfeited after', t.forfeitAfter], ['Redeem by maturity', fmtMoney(t.payoffAtMaturity)]]
+      .map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+    return p;
+  }
+  $('principal').oninput = terms; terms();
+
+  // ---- issue ----
+  $('issue').onclick = async () => {
+    const principal = terms();
+    if (!cust) return say('issueMsg', 'Choose a customer first.', 'bad');
+    if (cust.flags?.doNotBuy) return say('issueMsg', 'This customer is flagged Do Not Buy.', 'bad');
+    if (!items.length) return say('issueMsg', 'Add at least one collateral item.', 'bad');
+    if (!principal) return say('issueMsg', 'Enter the loan amount, like 100 or 100.50.', 'bad');
+    if (cust.ids.idExpiry && cust.ids.idExpiry < todayET() && !confirm('This customer\'s ID is expired. Continue anyway?')) return;
+    if (!confirm(`Issue a ${fmtMoney(principal)} loan to ${cust.firstName} ${cust.lastName} for ${items.length} item(s)?`)) return;
+    $('issue').disabled = true; say('issueMsg', 'Issuing…');
+    try {
+      const r = await createLoan({ customer: cust, principal, method: $('method').value, items });
+      const loan = { id: r.id, ticketNumber: r.ticketNumber, principal, originDate: r.originDate, terms: r.terms, createdByEmail: auth.currentUser?.email || '',
+        itemSummaries: items.map((i) => ({ title: i.f.title, category: i.f.category, serial: (i.f.serial || '').trim(), brand: i.f.brand || '', model: i.f.model || '' })) };
+      const html = ticketHtml({ loan, customer: cust, ids: cust.ids });
+      $('preview').innerHTML = html; $('printArea').innerHTML = html;
+      $('doneMsg').textContent = `Loan issued. Ticket #${r.ticketNumber}: pay out ${fmtMoney(principal)}.`;
+      $('flow').hidden = true; $('done').hidden = false; $('printBtn').onclick = () => print();
+    } catch (err) { say('issueMsg', 'Could not issue the loan. Photos and ticket numbers need a connection; check it and try again. Nothing was charged.', 'bad'); console.error(err); }
+    finally { $('issue').disabled = false; }
+  };
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline (loans need a connection)'; $('dot').classList.toggle('off', !on); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

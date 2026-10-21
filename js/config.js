@@ -16,6 +16,10 @@ export const CONFIG = {
     renewalsAllowed: null,        // null = unknown; engine allows renewals until set. VERIFY
     rounding: 'half-up',          // applied to cents. VERIFY
   },
+  ticket: {
+    firstNumber: 1001,
+    disclosureText: '',           // REQUIRED state disclosures: owner/attorney supplies the exact text. VERIFY
+  },
   compliance: {
     resaleHoldDays: null,         // VERIFY CT/municipal hold length; null = not confirmed
     policeReporting: { vendor: null }, // LeadsOnline / BWI / local PD. VERIFY
