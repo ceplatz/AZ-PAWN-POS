@@ -5,6 +5,8 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager }
   from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { CONFIG } from './config.js';
+import { applySettings } from './settings-logic.js';
 
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
 
@@ -29,6 +31,7 @@ export function watchAuth(cb) {
     if (!user) return cb(null, null);
     let role = null;
     try { role = (await getDoc(doc(db, 'roles', user.uid))).data()?.role ?? null; } catch { /* no access = no role */ }
+    if (role) { try { applySettings(CONFIG, (await getDoc(doc(db, 'config', 'settings'))).data()); } catch { /* keep defaults */ } }
     cb(user, role);
   });
 }

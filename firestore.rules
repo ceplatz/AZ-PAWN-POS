@@ -34,6 +34,8 @@ service cloud.firestore {
     // Each manager/owner can read and write only their own PIN record (salted hash + lockout counters).
     match /pins/{uid}       { allow read, write: if isMgr() && request.auth.uid == uid; }
     match /config/{doc}     { allow read: if isStaff(); allow write: if isOwner(); }
+    // Every settings change is logged (before/after). Append-only, owner-readable.
+    match /settingsLog/{id} { allow create: if isOwner(); allow read: if isOwner(); allow update, delete: if false; }
     match /{path=**}        { allow read, write: if false; }
   }
 }

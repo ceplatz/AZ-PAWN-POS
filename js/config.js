@@ -5,6 +5,7 @@ export const CONFIG = {
   shop: {
     name: 'AZ Pawn of Salem', // VERIFY exact legal/business name
     address: '', licenseNumbers: { pawn: '', ffl: '' }, // owner to supply
+    phone: '', taxRate: null,   // taxRate is a fraction (0.0635 = 6.35%). VERIFY
     timezone: 'America/New_York', locale: 'en-US', currency: 'USD',
   },
   loan: {
@@ -23,7 +24,8 @@ export const CONFIG = {
   compliance: {
     resaleHoldDays: null,         // VERIFY CT/municipal hold length; null = not confirmed
     policeReporting: { vendor: null }, // LeadsOnline / BWI / local PD. VERIFY
-    verified: false,              // never show "compliant" labels while false
+    verified: false,              // ticket content verified (set from Settings); never show "compliant" labels while false
+    loanTermsVerified: false,     // loan rate/term verified by owner/counsel (set from Settings)
   },
   roles: ['owner', 'manager', 'staff'],
 };

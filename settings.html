@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c151e">
+<title>Settings · AZ Pawn of Salem</title>
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  input, select, textarea { background:#0a121a; border:1px solid var(--line-2); border-radius:12px; color:var(--text); padding:13px 14px; font:inherit; width:100%; transition:.15s; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  main { max-width:860px; } fieldset { border:1px solid var(--line); border-radius:16px; padding:18px; margin:0; background:var(--panel); }
+  legend { padding:0 8px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+  .g { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+  label > span { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+  .v { color:var(--bad); font-style:normal; letter-spacing:.06em; margin-left:6px; }
+  .note { color:var(--muted); font-size:.85rem; margin:10px 0 0; }
+  .msg { min-height:1.4em; margin:10px 0 0; } .msg.bad { color:var(--bad); } .msg.good { color:var(--good); } .msg.warn { color:var(--accent); }
+  .ck { display:flex; gap:12px; align-items:flex-start; padding:12px 14px; border:1px solid var(--line-2); border-radius:12px; margin-top:10px; cursor:pointer; }
+  .ck input { width:auto; margin-top:4px; } .ck > span { text-transform:none; letter-spacing:normal; font-size:.92rem; color:var(--muted); margin:0; } .ck b { display:block; color:var(--text); font-size:1rem; }
+  table.pv { width:100%; border-collapse:collapse; margin-top:12px; } .pv th, .pv td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); font-size:.92rem; } .pv th { color:var(--muted); font-weight:500; }
+  #errs { color:var(--bad); margin:0; padding-left:18px; } [hidden] { display:none !important; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--accent); padding:12px 20px; border-radius:12px; z-index:30; }
+</style>
+</head>
+<body>
+<header>
+  <a class="ghost" href="index.html" style="text-decoration:none">&larr; Home</a>
+  <div class="wordmark" style="margin-left:6px">Settings</div><div class="spacer"></div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Online</span></div>
+</header>
+<main id="page" hidden>
+  <p class="note" style="margin:0">Owner only. Items marked <i class="v">VERIFY</i> are legal or regulatory values: confirm each with Regan, a Connecticut attorney, and ATF where firearms apply. Nothing here is a confirmed legal value until you tick its verification box below.</p>
+  <form id="form" novalidate style="display:grid;gap:18px">
+
+  <fieldset><legend>Shop</legend><div class="g">
+    <label><span>Shop name *</span><input name="name" autocomplete="off"></label>
+    <label><span>Phone</span><input name="phone" type="tel" autocomplete="off"></label>
+    <label><span>Street</span><input name="street" autocomplete="off"></label>
+    <label><span>City</span><input name="city" autocomplete="off"></label>
+    <label><span>State</span><input name="state" maxlength="2" autocomplete="off"></label>
+    <label><span>ZIP</span><input name="zip" maxlength="10" autocomplete="off"></label>
+    <label><span>Pawn license #<i class="v">VERIFY</i></span><input name="pawnLicense" autocomplete="off"></label>
+    <label><span>Federal firearms license (FFL) #<i class="v">VERIFY</i></span><input name="fflNumber" autocomplete="off"></label>
+    <label><span>Sales tax % <i class="v">VERIFY</i></span><input name="taxPct" inputmode="decimal" placeholder="e.g. 6.35"></label>
+  </div></fieldset>
+
+  <fieldset><legend>Pawn loan terms <i class="v">VERIFY</i></legend><div class="g">
+    <label><span>Interest % per month *</span><input name="ratePct" inputmode="decimal"></label>
+    <label><span>Loan term (months) *</span><input name="termMonths" inputmode="numeric"></label>
+    <label><span>How interest accrues *</span><select name="accrualMode"></select></label>
+    <label><span>Grace days after maturity</span><input name="graceDays" inputmode="numeric"></label>
+    <label><span>Renewals allowed</span><input name="renewalsAllowed" inputmode="numeric" placeholder="blank = no limit"></label>
+    <label><span>Forfeited item cost basis</span><select name="forfeitureCostBasis" disabled><option>Loan principal</option></select></label>
+  </div>
+  <p class="note">Changes apply to <b>new loans only</b>. Every existing loan keeps the terms it was issued under. Preview on a $100 loan opened today:</p>
+  <table class="pv" id="pv"></table></fieldset>
+
+  <fieldset><legend>Pawn ticket disclosures <i class="v">VERIFY</i></legend>
+    <label><span>Required disclosure text (printed on every ticket)</span><textarea name="disclosureText" rows="7" placeholder="Paste the exact wording your attorney provides."></textarea></label>
+    <p class="note">Leave empty until you have the approved text. The ticket prints a red placeholder instead, and cannot be marked verified.</p></fieldset>
+
+  <fieldset><legend>Compliance <i class="v">VERIFY</i></legend><div class="g">
+    <label><span>Resale hold period (days)</span><input name="resaleHoldDays" inputmode="numeric" placeholder="blank = not set"></label>
+    <label><span>Police reporting service</span><input name="policeVendor" placeholder="e.g. LeadsOnline, local PD"></label></div>
+    <p class="note">While the hold period is blank, items you buy or forfeit stay <b>On hold</b> until a manager releases them by hand. A number here sets the hold date automatically; 0 means no hold.</p></fieldset>
+
+  <fieldset><legend>Verification</legend>
+    <label class="ck"><input type="checkbox" name="verifyLoan"><span><b>Loan terms verified</b>I have confirmed the interest, term, grace period and renewal rules with counsel / Regan.</span></label>
+    <label class="ck"><input type="checkbox" name="verifyTicket"><span><b>Ticket content verified</b>The shop address, license number and disclosure text have been reviewed by counsel. Removes the DRAFT banner from printed tickets. Needs license, address and disclosure filled in.</span></label>
+    <p class="note" id="lastSaved"></p></fieldset>
+
+  <ul id="errs" hidden></ul>
+  <button class="gold" type="submit" id="save" style="padding:16px">Save settings</button><p class="msg" id="msg" role="alert"></p>
+  </form>
+</main>
+
+<script type="module">
+  import { watchAuth } from './js/firebase.js';
+  import { CONFIG } from './js/config.js';
+  import { ACCRUAL_MODES, validateSettings, toForm } from './js/settings-logic.js';
+  import { loadSettingsDoc, saveSettings } from './js/settings.js';
+  import { askPin, isUnlocked, markUnlocked } from './js/pin-gate.js';
+  import { accruedInterest, payoff, maturityDate, forfeitureDate, addMonths } from './js/loan-engine.js';
+  import { todayET } from './js/loans-logic.js';
+  import { fmtMoney } from './js/item-logic.js';
+
+  const $ = (id) => document.getElementById(id), form = $('form');
+  const say = (t, k = '') => { $('msg').textContent = t; $('msg').className = 'msg ' + k; };
+  form.elements.accrualMode.innerHTML = Object.entries(ACCRUAL_MODES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+
+  const read = () => {
+    const o = Object.fromEntries(new FormData(form).entries());
+    o.verifyLoan = form.elements.verifyLoan.checked; o.verifyTicket = form.elements.verifyTicket.checked; return o;
+  };
+  const fill = (v) => { for (const [k, x] of Object.entries(v)) { const el = form.elements[k]; if (!el) continue; if (el.type === 'checkbox') el.checked = !!x; else el.value = x; } };
+
+  function preview() {
+    const r = validateSettings({ ...read(), name: 'x' });
+    if (r.errors.some((e) => /interest|term|grace|accrues/i.test(e))) { $('pv').innerHTML = '<tr><td class="note">Fix the loan terms above to see the preview.</td></tr>'; return; }
+    const t = { ...r.value.loan, rounding: 'half-up' }, o = todayET(), l = { principal: 10000, originDate: o };
+    const mat = maturityDate(l, t), rows = [['Opened', o, 10000]];
+    for (let m = 1; m <= t.termMonths && m <= 6; m++) rows.push([`After ${m} month${m > 1 ? 's' : ''}`, addMonths(o, m), payoff(l, addMonths(o, m), t)]);
+    $('pv').innerHTML = '<tr><th>When</th><th>Date</th><th>Customer pays to redeem</th></tr>' + rows.map(([a, d, p]) => `<tr><td>${a}</td><td>${d}</td><td>${fmtMoney(p)}</td></tr>`).join('')
+      + `<tr><th colspan="3">Matures ${mat}. Forfeited (becomes shop inventory) ${forfeitureDate(l, t)}.</th></tr>`;
+  }
+  form.addEventListener('input', preview);
+
+  // Owner only, plus the PIN (re-asked unless unlocked in the last 10 minutes).
+  watchAuth(async (user, role) => {
+    if (!user || role !== 'owner') return location.replace('index.html');
+    try { if (!isUnlocked() && !(await askPin(user.uid))) return location.replace('index.html'); } catch { return location.replace('index.html'); }
+    ['pointerdown', 'keydown'].forEach((ev) => addEventListener(ev, markUnlocked, true));
+    let saved = null; try { saved = await loadSettingsDoc(); } catch { say('Could not load saved settings; showing defaults.', 'warn'); }
+    fill(toForm(saved, CONFIG)); preview(); $('page').hidden = false;
+    if (saved?.updatedByEmail) $('lastSaved').textContent = `Last saved by ${saved.updatedByEmail}${saved.verified?.at ? ' on ' + saved.verified.at.slice(0, 10) : ''}.`;
+  });
+
+  form.onsubmit = async (e) => {
+    e.preventDefault(); $('errs').hidden = true; say('');
+    const r = validateSettings(read());
+    if (!r.ok) { $('errs').innerHTML = r.errors.map((x) => `<li>${x}</li>`).join(''); $('errs').hidden = false; return say('Fix the items above and save again.', 'bad'); }
+    if (r.value.loan.monthlyRate > 0.5 && !confirm(`Interest is set to ${(r.value.loan.monthlyRate * 100)}% per month. Is that correct?`)) return;
+    $('save').disabled = true; say('Saving…');
+    try {
+      await saveSettings(r.value);
+      say('Saved. Every screen uses these values on its next load.', 'good');
+      const t = document.createElement('div'); t.className = 'toast'; t.textContent = 'Settings saved'; document.body.appendChild(t); setTimeout(() => t.remove(), 3000);
+    } catch (err) { say('Could not save. Check your connection, and that you are signed in as the owner.', 'bad'); console.error(err); }
+    finally { $('save').disabled = false; }
+  };
+  const sync = () => { const on = navigator.onLine; $('status').textContent = on ? 'Online' : 'Offline'; $('dot').classList.toggle('off', !on); };
+  addEventListener('online', sync); addEventListener('offline', sync); sync();
+</script>
+</body>
+</html>

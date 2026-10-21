@@ -71,12 +71,6 @@
 </main>
 <footer>AZ Pawn of Salem &middot; supports recordkeeping; does not by itself ensure legal compliance</footer>
 
-<dialog id="pinDlg"><div class="pinbox">
-  <h3 id="pinTitle">Enter PIN</h3><p class="hint" id="pinHint"></p>
-  <div class="dots" id="dots"></div><p class="hint" id="pinMsg" role="alert"></p>
-  <div class="keys" id="keys"></div>
-</div></dialog>
-
 <div class="area" id="area" hidden><div class="area-in">
   <div class="area-top"><h2>Owner &amp; Manager</h2>
     <button class="ghost" id="chgPin">Change PIN</button><button class="gold" id="lockBtn">Lock</button></div>
@@ -87,62 +81,29 @@
 
 <script type="module">
   import { watchAuth, login, logout } from './js/firebase.js';
-  import { hasPin, setPin, verifyPin } from './js/pin.js';
-  import { PIN_LENGTH } from './js/pin-crypto.js';
+  import { askPin, isUnlocked, markUnlocked, clearUnlocked, IDLE_MS } from './js/pin-gate.js';
   const $ = (id) => document.getElementById(id);
   const open = (t) => { $('msg').textContent = t; $('dlg').showModal(); };
   let role = null, uid = null;
 
   // ---- owner PIN gate ----
-  const MODS = ['Reports of the Day','Briefing','Loans ledger','Customers','Inventory management','Messaging','Reminders','Cash management','Settings'];
-  $('mods').innerHTML = MODS.map(m => `<div class="mod"><em>Soon</em><b>${m}</b><span>Coming in a later build step</span></div>`).join('');
-  const pin = { buf: '', mode: 'enter', first: '', busy: false };
-  const TITLES = { enter: ['Enter PIN', 'Owner area is locked'], create: ['Create your PIN', `Choose ${PIN_LENGTH} digits`], confirm: ['Confirm PIN', 'Enter it once more'] };
-  $('keys').innerHTML = [1,2,3,4,5,6,7,8,9,'Cancel',0,'⌫'].map(k =>
-    `<button data-k="${k}" class="${typeof k === 'string' ? 'sm' : ''}">${k}</button>`).join('');
-  function paint() {
-    $('dots').innerHTML = Array.from({ length: PIN_LENGTH }, (_, i) => `<i class="${i < pin.buf.length ? 'on' : ''}"></i>`).join('');
-    const [t, h] = TITLES[pin.mode]; $('pinTitle').textContent = t; $('pinHint').textContent = h;
-  }
-  function fail(text) { $('pinMsg').textContent = text; const d = $('dots'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); }
-  let timer = null, idleMs = 10 * 60 * 1000;
-  function lock() { $('area').hidden = true; clearTimeout(timer); }
-  function bump() { clearTimeout(timer); timer = setTimeout(lock, idleMs); }
-  function unlock() { $('pinDlg').close(); $('area').hidden = false; bump(); }
+  const MODS = [['Reports of the Day'], ['Briefing'], ['Loans ledger', 'loans.html'], ['Customers', 'customers.html'], ['Inventory management', 'inventory.html'],
+    ['Messaging'], ['Reminders'], ['Cash management'], ['Settings', 'settings.html', true]];
+  $('mods').innerHTML = MODS.map(([n, href]) => href
+    ? `<a class="mod" href="${href}" data-owner="${MODS.find(m => m[0] === n)[2] ? 1 : ''}" style="text-decoration:none;color:inherit;cursor:pointer"><em style="color:var(--good)">Open</em><b>${n}</b><span>${n === 'Settings' ? 'Owner only: shop, loan terms, ticket, compliance' : 'Open this page'}</span></a>`
+    : `<div class="mod"><em>Soon</em><b>${n}</b><span>Coming in a later build step</span></div>`).join('');
+  $('mods').onclick = (e) => { const a = e.target.closest('a[data-owner="1"]'); if (a && role !== 'owner') { e.preventDefault(); open('Settings are owner only.'); } };
+  let timer = null;
+  function lock() { $('area').hidden = true; clearTimeout(timer); clearUnlocked(); }
+  function bump() { clearTimeout(timer); timer = setTimeout(lock, IDLE_MS); markUnlocked(); }
+  const pinErr = () => open('Could not reach the server to check your PIN. Check your connection.');
   async function openOwner() {
     if (!(role === 'owner' || role === 'manager')) return open('Owner/Manager access required.');
     if (!$('area').hidden) return;
-    Object.assign(pin, { buf: '', first: '', busy: false }); $('pinMsg').textContent = '';
-    try { pin.mode = (await hasPin(uid)) ? 'enter' : 'create'; }
-    catch { return open('Could not reach the server to check your PIN. Check your connection.'); }
-    paint(); $('pinDlg').showModal();
+    try { if (isUnlocked() || await askPin(uid)) { $('area').hidden = false; bump(); } } catch { pinErr(); }
   }
-  async function complete() {
-    const code = pin.buf; pin.buf = ''; pin.busy = true; paint();
-    try {
-      if (pin.mode === 'create') { pin.first = code; pin.mode = 'confirm'; }
-      else if (pin.mode === 'confirm') {
-        if (code !== pin.first) { pin.mode = 'create'; fail('PINs did not match. Start again.'); }
-        else { await setPin(uid, code); unlock(); }
-      } else {
-        const r = await verifyPin(uid, code);
-        if (r.ok) unlock();
-        else fail(r.lockedMs ? `Too many tries. Locked for ${Math.ceil(r.lockedMs / 60000)} min.` : 'Incorrect PIN');
-      }
-    } catch { fail('Something went wrong. Check your connection.'); }
-    pin.busy = false; paint();
-  }
-  function press(k) {
-    if (pin.busy) return; $('pinMsg').textContent = '';
-    if (k === 'Cancel') return $('pinDlg').close();
-    if (k === '⌫') pin.buf = pin.buf.slice(0, -1);
-    else if (/^\d$/.test(k) && pin.buf.length < PIN_LENGTH) pin.buf += k;
-    paint(); if (pin.buf.length === PIN_LENGTH) complete();
-  }
-  $('keys').onclick = (e) => { const b = e.target.closest('button'); if (b) press(b.dataset.k); };
-  $('pinDlg').addEventListener('keydown', (e) => { if (/^\d$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('⌫'); });
   $('lockBtn').onclick = lock;
-  $('chgPin').onclick = () => { Object.assign(pin, { mode: 'create', buf: '', first: '' }); $('pinMsg').textContent = ''; paint(); $('pinDlg').showModal(); };
+  $('chgPin').onclick = async () => { try { if (await askPin(uid, { change: true })) bump(); } catch { pinErr(); } };
   ['pointerdown', 'keydown', 'scroll'].forEach(ev => $('area').addEventListener(ev, () => !$('area').hidden && bump(), true));
 
   document.querySelectorAll('.tile[data-href]').forEach(b => b.onclick = () => { location.href = b.dataset.href; });

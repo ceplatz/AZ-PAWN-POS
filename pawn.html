@@ -65,7 +65,7 @@
     <label><span>Amount to loan $ *</span><input id="principal" inputmode="decimal" placeholder="0.00"></label>
     <label><span>Paid out by</span><select id="method"><option value="cash">Cash</option><option value="card">Card / check</option></select></label></div>
     <div class="terms box" id="terms"></div>
-    <p class="note">Interest rate and term come from Settings and are marked VERIFY until the owner and counsel confirm them. Each loan keeps the terms it was issued under.</p></fieldset>
+    <p class="note" id="termsNote"></p></fieldset>
 
   <button class="gold" id="issue" style="padding:16px">Issue loan and print ticket</button><p class="msg" id="issueMsg" role="alert"></p>
 </main>
@@ -98,6 +98,7 @@
 
   watchAuth(async (user, role) => {
     if (!user || !role) return location.replace('index.html');
+    noteTerms();
     try { people = await listCustomers(); } catch { say('custMsg', 'Could not load customers. Check your connection.', 'bad'); }
   });
 
@@ -149,6 +150,8 @@
     return p;
   }
   $('principal').oninput = terms; terms();
+  const noteTerms = () => { $('termsNote').innerHTML = CONFIG.compliance.loanTermsVerified ? 'Terms come from Settings. Each loan keeps the terms it was issued under.'
+    : '<b style="color:var(--accent)">Loan terms are not yet verified by the owner/counsel.</b> They come from Settings (owner can verify there). Each loan keeps the terms it was issued under.'; terms(); };
 
   // ---- issue ----
   $('issue').onclick = async () => {
